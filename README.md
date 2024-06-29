@@ -16,6 +16,8 @@ class ToRustDef a where
 class ToRustRef a where
   toRustRef :: Text
 
+---
+
 instance ToRustRef Text where
   toRustRef = "String"
 
