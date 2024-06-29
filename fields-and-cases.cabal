@@ -33,3 +33,18 @@ library
     hs-source-dirs:   lib
     default-language: Haskell2010
 
+test-suite test
+  default-language:
+    Haskell2010
+  type:
+    exitcode-stdio-1.0
+  hs-source-dirs:
+    tests
+  main-is:
+    test.hs
+  build-depends:
+      base ^>=4.17.2.0
+    , relude
+    , tasty
+    , tasty-hunit
+    , fields-and-cases
