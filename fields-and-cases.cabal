@@ -3,7 +3,7 @@ name:               fields-and-cases
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
-synopsis: Simlify generation from Haskell types to other languages
+synopsis:           Simplify generation from Haskell types to other languages
 
 -- A longer description of the package.
 -- description:
@@ -21,30 +21,56 @@ maintainer:         no-day@posteo.net
 -- category:
 extra-source-files: CHANGELOG.md
 
-library
-    -- Modules exported by the library.
-    exposed-modules:
-      FieldsAndCases
+common common-opts
+  default-language:   Haskell2010
+  default-extensions:
+    AllowAmbiguousTypes
+    ConstraintKinds
+    DataKinds
+    DefaultSignatures
+    DeriveGeneric
+    DerivingVia
+    DeriveAnyClass
+    DuplicateRecordFields
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    MultiParamTypeClasses
+    NamedFieldPuns
+    NoImplicitPrelude
+    OverloadedStrings
+    PolyKinds
+    RankNTypes
+    ScopedTypeVariables
+    TypeApplications
+    TypeFamilies
+    TypeFamilyDependencies
+    TypeOperators
+    UndecidableInstances
+    UndecidableSuperClasses
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
-    build-depends:    base ^>=4.17.2.0
-                    , relude
-    hs-source-dirs:   lib
-    default-language: Haskell2010
+library
+  import:          common-opts
+  exposed-modules: FieldsAndCases
+  build-depends:
+    , base                ^>=4.17.2.0
+    , relude
+    , string-conversions
+
+  hs-source-dirs:  lib
 
 test-suite test
-  default-language:
-    Haskell2010
-  type:
-    exitcode-stdio-1.0
-  hs-source-dirs:
-    tests
-  main-is:
-    test.hs
+  import:         common-opts
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: tests
+  main-is:        test.hs
   build-depends:
-      base ^>=4.17.2.0
+    , base                ^>=4.17.2.0
+    , fields-and-cases
+    , lima
     , relude
+    , string-conversions
     , tasty
     , tasty-hunit
-    , fields-and-cases

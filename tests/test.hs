@@ -1,31 +1,6 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module Main where
 
+import Lima.Converter (Format (..), convertTo, def)
 import FieldsAndCases (Case (..), Cases (..), Field (..), Fields (..), PositionalField (..), PositionalFields (..), ToDef, ToRef, TypeDef (..), toRef)
 import qualified FieldsAndCases as FnC
 import GHC.Generics
@@ -36,6 +11,7 @@ import Test.Tasty.HUnit
 import FieldsAndCases (QualName(..))
 import FieldsAndCases (TextLang)
 import FieldsAndCases (IsLang(..))
+import Data.String.Conversions (cs)
 
 instance ToRef TextLang Int where
   toRef = "Int"
@@ -135,7 +111,13 @@ type Res =
 
 ---
 
-main = defaultMain tests
+main :: IO ()
+main = do
+  readmeHs <- readFileBS "tests/Readme.hs"
+  let readmeMd = convertTo Hs Md def (cs readmeHs)
+  writeFileBS "README.md" (cs readmeMd)
+  
+  defaultMain tests
 
 tests :: TestTree
 tests = testGroup "Tests" [unitTests]
