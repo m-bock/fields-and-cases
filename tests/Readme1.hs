@@ -1,28 +1,21 @@
-```haskell
-module Readme where
+module Readme1 where
 
-import FieldsAndCases (Case (..), Cases (..), QualName (..), TextLang, TypeDef (..))
-import qualified FieldsAndCases as FnC
-import Relude
-import FieldsAndCases (Fields(..))
-import FieldsAndCases (Field(..))
-import qualified Data.Text as Txt
 import Data.String.Conversions (cs)
-import FieldsAndCases (ToRef)
-import FieldsAndCases (IsLang)
-```
+import qualified Data.Text as Txt
+import Relude
 
+{-
 # fields-and-cases
 
 Generating other languages' types from Haskell types is a straightforward task.
 We a custom type class we can do this as follows:
+-}
 
-```haskell
 data Activity
   = Working {hard :: Bool, hours :: Int}
   | Studying {hours :: Int, subject :: Text}
   | Sleeping {dream :: Text}
-  deriving (Show, Eq, Generic, ToRef RustCode)
+  deriving (Show, Eq, Generic)
 
 data Person = Person
   { name :: Text,
@@ -32,11 +25,9 @@ data Person = Person
     activity :: Activity
   }
   deriving (Show, Eq)
-```
 
-<!-- --- -->
+{- --- -}
 
-```haskell
 class ToRust a where
   toRust :: Text
 
@@ -54,11 +45,9 @@ instance (ToRust a) => ToRust [a] where
 
 instance ToRust Activity where
   toRust = "Activity"
-```
 
-<!-- --- -->
+{- --- -}
 
-```haskell
 rustModule :: Text
 rustModule =
   unlines
@@ -93,46 +82,3 @@ rustModuleGenerated =
       "  Sleeping { dream: String }",
       "}"
     ]
-```
-
-<!-- --- -->
-
-```haskell
-newtype RustCode = RustCode TextLang
-  deriving (Show, Eq)
-  deriving newtype (IsString, Semigroup, IsLang)
-
-instance FnC.ToRef RustCode Text where
-  toRef = "String"
-
-instance FnC.ToRef RustCode Int where
-  toRef = "i32"
-
-instance FnC.ToRef RustCode Bool where
-  toRef = "bool"
-
-instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode [a] where
-  toRef = "Vec<" <> FnC.toRef @RustCode @a <> ">"
-
--- instance FnC.ToRef RustCode Activity where
---   toRef = FnC.toRef @_ @Activity
-
-instance FnC.ToRef RustCode Person where
-  toRef = FnC.toRef @_ @Person
-
-f :: TypeDef RustCode -> Text
-f (FnC.selectCasesMultiFields -> Just x) = ""
-f (FnC.selectFields -> Just (QualName {typeName}, fields)) =
-  unlines
-    [ "struct " <> typeName <> " {",
-      -- Txt.intercalate ",\n" $ map (\(Field {fieldName, fieldType}) -> fieldName <> ": " <> fieldType) fields,
-      "}"
-    ]
-f _ = error "unsupported"
-
--- class ToRef' a lang where
---   toRef' :: lang
-
--- instance (FnC.ToRef lang a ) =>  ToRef' a lang where
---   toRef' = FnC.toRef @lang @a
-```

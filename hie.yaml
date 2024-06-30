@@ -1,0 +1,7 @@
+cradle:
+  cabal:
+    - path: "./lib"
+      component: "lib:fields-and-cases"
+
+    - path: "./test"
+      component: "test:test"

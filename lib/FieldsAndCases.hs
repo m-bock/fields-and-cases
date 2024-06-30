@@ -1,5 +1,6 @@
 module FieldsAndCases where
 
+import Data.String.Conversions (cs)
 import GHC.Generics
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Relude
@@ -11,7 +12,8 @@ data TypeDef lang = TypeDef
   deriving (Show, Eq)
 
 newtype Cases lang = Cases [Case lang]
-  deriving (Monoid, Semigroup, Show, Eq)
+  deriving (Show)
+  deriving newtype (Monoid, Semigroup, Eq)
 
 data Case lang
   = CaseWithFields
@@ -30,12 +32,14 @@ data Case lang
 newtype Fields lang = Fields
   { fields :: [Field lang]
   }
-  deriving (Monoid, Semigroup, Show, Eq)
+  deriving (Show)
+  deriving newtype (Monoid, Semigroup, Eq)
 
 newtype PositionalFields lang = PositionalFields
   { fields :: [PositionalField lang]
   }
-  deriving (Monoid, Semigroup, Show, Eq)
+  deriving (Show)
+  deriving newtype (Monoid, Semigroup, Eq)
 
 data Field lang = Field
   { fieldName :: Text,
@@ -54,56 +58,31 @@ data QualName = QualName
   }
   deriving (Show, Eq)
 
---- Utils ---
-
--- Function to get the Rep of a type without a value
-getRep :: forall rep a x. (Generic a, Rep a ~ rep) => Proxy a -> rep x
-getRep _ = from (error "no value" :: a)
-
----
-
-type TextLang = LinearLang Text
-
-newtype LinearLang lang = LinearLang [LinearLangItem lang]
-  deriving (Show, Eq)
-
-data LinearLangItem lang
-  = Ref QualName
-  | Code lang
-  deriving (Show, Eq)
-
-instance (IsString lang) => IsString (LinearLang lang) where
-  fromString s = LinearLang [Code $ fromString s]
-
-instance Semigroup (LinearLang lang) where
-  (LinearLang a) <> (LinearLang b) = LinearLang $ a <> b
-
-instance IsLang (LinearLang lang) where
-  typeRef qualName = LinearLang [Ref qualName]
-
 ---
 
 class IsLang lang where
   typeRef :: QualName -> lang
+
+instance IsLang Text where
+  typeRef (QualName {typeName}) = fromString $ cs typeName
 
 --- ToRef ---
 
 class ToRef lang a where
   toRef :: lang
   default toRef ::
-    (Generic a, GToRef (Rep a) lang) => lang
+    (IsLang lang, Generic a, GToRef (Rep a)) => lang
   toRef =
-    gToRef $ getRep (Proxy :: Proxy a)
+    typeRef $ gToRef $ getRep (Proxy :: Proxy a)
 
-class GToRef rep lang where
-  gToRef :: rep a -> lang
+class GToRef rep where
+  gToRef :: rep a -> QualName
 
 -- Match Data Type
 instance
-  (KnownSymbol typeName, KnownSymbol moduleName, IsLang lang) =>
+  (KnownSymbol typeName, KnownSymbol moduleName) =>
   GToRef
     (M1 {- MetaInfo -} D {- DataType -} ('MetaData typeName moduleName packageName isNewtype) cases)
-    lang
   where
   gToRef _ = result
     where
@@ -113,20 +92,22 @@ instance
       typeName :: Text
       typeName = fromString $ symbolVal (Proxy @typeName)
 
-      qualName :: QualName
-      qualName = QualName {moduleName, typeName}
+      result :: QualName
+      result = QualName {moduleName, typeName}
 
-      result :: lang
-      result = typeRef qualName
+class Ref a lang where
+  ref :: lang
+
+instance (ToRef lang a) => Ref a lang where
+  ref = toRef @lang @a
 
 --- ToDef ---
 
-class ToDef lang a where
+class ToDef a lang where
   toDef :: TypeDef lang
-  default toDef ::
-    (Generic a, GToDef (Rep a) TypeDef lang) => TypeDef lang
-  toDef =
-    gToDef $ getRep (Proxy :: Proxy a)
+
+instance (Generic a, GToDef (Rep a) TypeDef lang) => ToDef a lang where
+  toDef = gToDef $ getRep (Proxy :: Proxy a)
 
 class GToDef rep def lang where
   gToDef :: rep a -> def lang
@@ -302,3 +283,9 @@ instance
 
       result :: PositionalFields lang
       result = PositionalFields [field]
+
+--- Utils ---
+
+-- Function to get the Rep of a type without a value
+getRep :: forall rep a x. (Generic a, Rep a ~ rep) => Proxy a -> rep x
+getRep _ = from (error "no value" :: a)

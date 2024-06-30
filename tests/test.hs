@@ -29,13 +29,13 @@ instance (ToRef TextLang a) => ToRef TextLang [a] where
   toRef = "Vec<" <> toRef @_ @a <> ">"
 
 data SampleType2 = SampleType2 Int Bool
-  deriving (Eq, Show, Generic, ToRef TextLang, ToDef TextLang)
+  deriving (Eq, Show, Generic, ToRef TextLang)
 
 data SampleType
   = Case1 {fieldA :: Int, fieldB :: SampleType2, fieldC :: [Float]}
   | Case2 Int Text Float
   | Case3
-  deriving (Eq, Show, Generic, ToRef TextLang, ToDef TextLang)
+  deriving (Eq, Show, Generic, ToRef TextLang)
 
 type Res =
   M1
@@ -126,7 +126,7 @@ unitTests =
   testGroup
     "Unit tests"
     [ testCase "..."
-        $ ( FnC.toDef @TextLang @SampleType
+        $ ( FnC.toDef @SampleType @TextLang 
               @?= TypeDef
                 { typeName = QualName "Main" "SampleType",
                   cases =

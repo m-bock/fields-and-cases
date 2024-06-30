@@ -50,6 +50,7 @@ common common-opts
     TypeOperators
     UndecidableInstances
     UndecidableSuperClasses
+    ViewPatterns
 
 library
   import:          common-opts
@@ -64,6 +65,7 @@ library
 test-suite test
   import:         common-opts
   type:           exitcode-stdio-1.0
+  other-modules:  Readme1, Readme2
   hs-source-dirs: tests
   main-is:        test.hs
   build-depends:
