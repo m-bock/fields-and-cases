@@ -2,17 +2,18 @@ module Main where
 
 import Data.String.Conversions (cs)
 import Data.Text (replace)
-import FieldsAndCases (Case (..), IsLang (..), PositionalField (..), PositionalFields (..), QualName (..), ToDef, ToRef, TypeDef (..), toRef)
+import FieldsAndCases (Case (..), IsLang (..), PositionalField (..), QualName (..), ToDef, ToRef, TypeDef (..), toRef)
 import qualified FieldsAndCases as FnC
 import GHC.Generics
 import qualified GHC.Generics as GHC
 import Lima.Converter (Format (..), convertTo, def)
+import qualified Readme
 import Relude
 import Spec (unitTests)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Regex (mkRegex, subRegex)
-import qualified Readme
+
 ---
 
 main :: IO ()
@@ -26,20 +27,19 @@ genReadme = do
 
   readmeHs <- readFileBS "tests/Readme.hs"
 
-  let readmeMd = convertTo Hs Md def (cs readmeHs)
+  let readmeMd' = convertTo Hs Md def (cs readmeHs)
 
   Readme.main
 
   readmeOutput <- readFileBS "tests/Readme.rs"
   let readmeOutput' = "```rust\n" <> readmeOutput <> "\n```"
 
-
-  let readmeMd' =
+  let readmeMd'' =
         cs readmeMd
-          & replaceSection "example2" readmeMd2
-          & replaceSection "example2out" (cs readmeOutput2')
+          & replaceSection "example" readmeMd'
+          & replaceSection "exampleOut" (cs readmeOutput')
 
-  writeFileBS "README.md" (cs readmeMd')
+  writeFileBS "README.md" (cs readmeMd'')
 
 tests :: TestTree
 tests = testGroup "Tests" [unitTests]

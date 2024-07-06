@@ -2,7 +2,19 @@ module Spec where
 
 import Data.String.Conversions (cs)
 import Data.Text (replace)
-import FieldsAndCases (Case (..), IsLang (..), PositionalField (..), PositionalFields (..), QualName (..), Ref (..), ToDef, ToRef (toRef), TypeDef (..), toRef, LabeledField)
+import FieldsAndCases
+  ( Case (..),
+    CaseFields (..),
+    IsLang (..),
+    LabeledField (..),
+    PositionalField (..),
+    QualName (..),
+    Ref (..),
+    ToDef,
+    ToRef (toRef),
+    TypeDef (..),
+    toRef,
+  )
 import qualified FieldsAndCases as FnC
 import GHC.Generics
 import qualified GHC.Generics as GHC
@@ -10,8 +22,6 @@ import Lima.Converter (Format (..), convertTo, def)
 import Relude
 import Test.Tasty
 import Test.Tasty.HUnit
-import FieldsAndCases (LabeledField(..))
-import FieldsAndCases (CaseFields(..))
 
 newtype Code = Code Text
   deriving (Show, Eq)

@@ -87,23 +87,22 @@ instance (ToRef lang a) => Ref a lang where
 class ToDef a lang where
   toDef :: TypeDef lang
 
-instance (Generic a, GToDef (Rep a) TypeDef lang) => ToDef a lang where
+instance (Generic a, GToDef (Rep a) (TypeDef lang)) => ToDef a lang where
   toDef = gToDef $ getRep (Proxy :: Proxy a)
 
-class GToDef rep def lang where
-  gToDef :: rep a -> def lang
+class GToDef rep def where
+  gToDef :: rep a -> def
 
 -- Match Data Type
 instance
-  (GToDef cases (Compose [] Case) lang, KnownSymbol typeName, KnownSymbol moduleName) =>
+  (GToDef cases [Case lang], KnownSymbol typeName, KnownSymbol moduleName) =>
   GToDef
     (M1 {- MetaInfo -} D {- DataType -} ('MetaData typeName moduleName packageName isNewtype) cases)
-    TypeDef
-    lang
+    (TypeDef lang)
   where
   gToDef _ = result
     where
-      cases :: Compose [] Case lang
+      cases :: [Case lang]
       cases = gToDef (error "no value" :: cases x)
 
       moduleName :: Text
@@ -120,35 +119,33 @@ instance
 
 -- Match Sum
 instance
-  (GToDef lhs (Compose [] Case) lang, GToDef rhs (Compose [] Case) lang) =>
+  (GToDef lhs [Case lang], GToDef rhs [Case lang]) =>
   GToDef
     (lhs :+: rhs)
-    (Compose [] Case)
-    lang
+    [Case lang]
   where
   gToDef _ = result
     where
-      lhs :: Compose [] Case lang
+      lhs :: [Case lang]
       lhs = gToDef (error "no value" :: lhs x)
 
-      rhs :: Compose [] Case lang
+      rhs :: [Case lang]
       rhs = gToDef (error "no value" :: rhs x)
 
-      result :: Compose [] Case lang
+      result :: [Case lang]
       result = lhs <> rhs
 
 -- Match Constructor with fields
 instance
   {-# OVERLAPPABLE #-}
-  (KnownSymbol ctorName, GToDef fields (Compose [] LabeledField) lang) =>
+  (KnownSymbol ctorName, GToDef fields [LabeledField lang]) =>
   GToDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'True) fields)
-    (Compose [] Case)
-    lang
+    [Case lang]
   where
   gToDef _ = result
     where
-      fields :: Compose [] LabeledField lang
+      fields :: [LabeledField lang]
       fields = gToDef (error "no value" :: fields x)
 
       tagName :: Text
@@ -161,24 +158,23 @@ instance
             caseFields = Just $ CaseLabeledFields (coerce fields)
           }
 
-      result :: Compose [] Case lang
+      result :: [Case lang]
       result = coerce [case_]
 
 -- Match Constructor with positional fields
 instance
   {-# OVERLAPPABLE #-}
-  (KnownSymbol ctorName, GToDef fields (Compose [] PositionalField) lang) =>
+  (KnownSymbol ctorName, GToDef fields [PositionalField lang]) =>
   GToDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'False {- hasSelectors -}) fields)
-    (Compose [] Case)
-    lang
+    [Case lang]
   where
   gToDef _ = result
     where
       tagName :: Text
       tagName = fromString $ symbolVal (Proxy @ctorName)
 
-      fields :: Compose [] PositionalField lang
+      fields :: [PositionalField lang]
       fields = gToDef (error "no value" :: fields x)
 
       case_ :: Case lang
@@ -188,7 +184,7 @@ instance
             caseFields = Just $ CasePositionalFields (coerce fields)
           }
 
-      result :: Compose [] Case lang
+      result :: [Case lang]
       result = coerce [case_]
 
 -- Match Constructor without fields
@@ -197,8 +193,7 @@ instance
   (KnownSymbol ctorName) =>
   GToDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'False {- hasSelectors -}) U1 {- Unit -})
-    (Compose [] Case)
-    lang
+    [Case lang]
   where
   gToDef _ = result
     where
@@ -208,26 +203,25 @@ instance
       case_ :: Case lang
       case_ = Case {tagName, caseFields = Nothing}
 
-      result :: Compose [] Case lang
+      result :: [Case lang]
       result = coerce [case_]
 
 -- Match Product
 instance
-  (GToDef lhs fields lang, GToDef rhs fields lang, Semigroup (fields lang)) =>
+  (GToDef lhs fields, GToDef rhs fields, Semigroup fields) =>
   GToDef
     (lhs :*: rhs)
     fields
-    lang
   where
   gToDef _ = result
     where
-      lhs :: fields lang
+      lhs :: fields
       lhs = gToDef (error "no value" :: lhs x)
 
-      rhs :: fields lang
+      rhs :: fields
       rhs = gToDef (error "no value" :: rhs x)
 
-      result :: fields lang
+      result :: fields
       result = lhs <> rhs
 
 -- Match Field
@@ -236,8 +230,7 @@ instance
   (ToRef lang a, KnownSymbol fieldName) =>
   GToDef
     (M1 {- MetaInfo -} S {- Selector -} ('MetaSel ('Just fieldName) srcUnpackedness srcStrictness inferedStrictness) (K1 R a))
-    (Compose [] LabeledField)
-    lang
+    [LabeledField lang]
   where
   gToDef _ = result
     where
@@ -250,7 +243,7 @@ instance
       field :: LabeledField lang
       field = LabeledField {fieldName, fieldType}
 
-      result :: Compose [] LabeledField lang
+      result :: [LabeledField lang]
       result = coerce [field]
 
 -- Match Positional Field
@@ -259,8 +252,7 @@ instance
   (ToRef lang a) =>
   GToDef
     (M1 {- MetaInfo -} S {- Selector -} ('MetaSel 'Nothing srcUnpackedness srcStrictness inferedStrictness) (K1 R a))
-    (Compose [] PositionalField)
-    lang
+    [PositionalField lang]
   where
   gToDef _ = result
     where
@@ -270,7 +262,7 @@ instance
       field :: PositionalField lang
       field = PositionalField {fieldType}
 
-      result :: Compose [] PositionalField lang
+      result :: [PositionalField lang]
       result = coerce [field]
 
 --- Utils ---

@@ -1,14 +1,7 @@
 {-
 <!--
 -}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-
-module Readme`  ` where
-
-{-
-
--}
+module Readme where
 
 import Data.String.Conversions (cs)
 import qualified Data.Text as Txt
@@ -16,7 +9,7 @@ import qualified FieldsAndCases as FnC
 import Relude
 
 {-
---!>
+-->
 -}
 
 data Activity
@@ -50,23 +43,17 @@ data Person = Person
   deriving
     (Show, Eq, Generic)
 
-{- --- -}
+{-
+...
+-}
 
 newtype RustCode = RustCode Text
   deriving (Show, Eq)
   deriving newtype (IsString, Semigroup, FnC.IsLang, ToText)
 
-{- --- -}
-
-instance FnC.ToRef RustCode Activity
-
-instance FnC.ToRef RustCode Location
-
-instance FnC.ToRef RustCode Vector
-
-instance FnC.ToRef RustCode Person
-
-{- --- -}
+{-
+...
+-}
 
 instance FnC.ToRef RustCode Text where
   toRef = "String"
@@ -77,7 +64,9 @@ instance FnC.ToRef RustCode Int where
 instance FnC.ToRef RustCode Bool where
   toRef = "bool"
 
-{- --- -}
+{-
+...
+-}
 
 instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode (Maybe a) where
   toRef =
@@ -87,8 +76,21 @@ instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode [a] where
   toRef =
     "Vec<" <> FnC.ref @a <> ">"
 
-{- --- -}
+{-
+...
+-}
 
+instance FnC.ToRef RustCode Activity
+
+instance FnC.ToRef RustCode Location
+
+instance FnC.ToRef RustCode Vector
+
+instance FnC.ToRef RustCode Person
+
+{-
+...
+-}
 
 genRustTypeDef :: FnC.TypeDef RustCode -> Text
 genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
@@ -99,7 +101,9 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
     cases ->
       genRustEnum typeName cases
 
-{- --- -}
+{-
+...
+-}
 
 genRustStruct :: Text -> [FnC.LabeledField RustCode] -> Text
 genRustStruct typeName fields =
@@ -133,7 +137,9 @@ genRustEnum typeName cases =
           ]
       Just (FnC.CasePositionalFields fields) -> error "positional fields not supported in this demo"
 
-{- --- -}
+{-
+...
+-}
 
 code :: Text
 code =
@@ -145,8 +151,10 @@ code =
       genRustTypeDef $ FnC.toDef @Vector
     ]
 
-{- --- -}
+{-
+...
+-}
 
 main :: IO ()
 main = do
-  writeFile "tests/Readme2.rs" (cs code)
+  writeFile "tests/Readme.rs" (cs code)
