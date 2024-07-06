@@ -1,10 +1,10 @@
 {-
-
+<!--
 -}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Readme2 where
+module Readme`  ` where
 
 {-
 
@@ -12,11 +12,11 @@ module Readme2 where
 
 import Data.String.Conversions (cs)
 import qualified Data.Text as Txt
-import FieldsAndCases (Case (..), CaseFields (..), IsLang, LabeledField (..), LabeledFields (..), QualName (..), Ref (..), ToRef, TypeDef (..))
 import qualified FieldsAndCases as FnC
 import Relude
 
 {-
+--!>
 -}
 
 data Activity
@@ -54,17 +54,17 @@ data Person = Person
 
 newtype RustCode = RustCode Text
   deriving (Show, Eq)
-  deriving newtype (IsString, Semigroup, IsLang, ToText)
+  deriving newtype (IsString, Semigroup, FnC.IsLang, ToText)
 
 {- --- -}
 
-instance ToRef RustCode Activity
+instance FnC.ToRef RustCode Activity
 
-instance ToRef RustCode Location
+instance FnC.ToRef RustCode Location
 
-instance ToRef RustCode Vector
+instance FnC.ToRef RustCode Vector
 
-instance ToRef RustCode Person
+instance FnC.ToRef RustCode Person
 
 {- --- -}
 
@@ -81,57 +81,57 @@ instance FnC.ToRef RustCode Bool where
 
 instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode (Maybe a) where
   toRef =
-    "Option<" <> ref @a <> ">"
+    "Option<" <> FnC.ref @a <> ">"
 
 instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode [a] where
   toRef =
-    "Vec<" <> ref @a <> ">"
+    "Vec<" <> FnC.ref @a <> ">"
 
 {- --- -}
 
-genRustTypeDef :: TypeDef RustCode -> Text
-genRustTypeDef (TypeDef {typeName = QualName {typeName}, cases}) =
+
+genRustTypeDef :: FnC.TypeDef RustCode -> Text
+genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
   case cases of
-    [Case {tagName, caseFields = Just (CaseLabeledFields fields)}]
+    [FnC.Case {tagName, caseFields = Just (FnC.CaseLabeledFields fields)}]
       | typeName == tagName ->
-          genStruct typeName fields
+          genRustStruct typeName fields
     cases ->
-      genEnum typeName cases
+      genRustEnum typeName cases
 
 {- --- -}
 
-genStruct :: Text -> [LabeledField RustCode] -> Text
-genStruct typeName fields =
+genRustStruct :: Text -> [FnC.LabeledField RustCode] -> Text
+genRustStruct typeName fields =
   unlines
     [ "struct " <> typeName <> "{",
       fields
-        & map (\(LabeledField {fieldName, fieldType}) -> fieldName <> ": " <> toText fieldType)
-        & Txt.intercalate ", ",
+        & foldMap (\(FnC.LabeledField {fieldName, fieldType}) -> "  " <> fieldName <> ": " <> toText fieldType <> ",\n"),
       "}"
     ]
 
-genEnum :: Text -> [Case RustCode] -> Text
-genEnum typeName cases =
+genRustEnum :: Text -> [FnC.Case RustCode] -> Text
+genRustEnum typeName cases =
   unlines
     [ "enum " <> typeName <> " {",
       cases
-        & map (\(Case {tagName, caseFields}) -> tagName <> " " <> "")
+        & map (\(FnC.Case {tagName, caseFields}) -> "  " <> tagName <> " " <> genFields caseFields)
         & Txt.intercalate ",\n",
       "}"
     ]
   where
-    genFields :: Maybe (CaseFields RustCode) -> Text
+    genFields :: Maybe (FnC.CaseFields RustCode) -> Text
     genFields = \case
       Nothing -> ""
-      Just (CaseLabeledFields fields) ->
+      Just (FnC.CaseLabeledFields fields) ->
         unwords
           [ "{",
             fields
-              & map (\(LabeledField {fieldName, fieldType}) -> fieldName <> ": " <> toText fieldType)
+              & map (\(FnC.LabeledField {fieldName, fieldType}) -> fieldName <> ": " <> toText fieldType)
               & Txt.intercalate ", ",
             "}"
           ]
-      Just (CasePositionalFields fields) -> error "positional fields not supported in this demo"
+      Just (FnC.CasePositionalFields fields) -> error "positional fields not supported in this demo"
 
 {- --- -}
 

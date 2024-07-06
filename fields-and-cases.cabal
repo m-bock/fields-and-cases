@@ -70,7 +70,7 @@ library
 test-suite test
   import:         common-opts
   type:           exitcode-stdio-1.0
-  other-modules:  Readme1, Readme2, Spec
+  other-modules:  Readme, Readme2, Spec
   hs-source-dirs: tests
   main-is:        test.hs
   build-depends:

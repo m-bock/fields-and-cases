@@ -12,7 +12,7 @@ import Spec (unitTests)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Regex (mkRegex, subRegex)
-import qualified Readme2
+import qualified Readme
 ---
 
 main :: IO ()
@@ -24,14 +24,14 @@ genReadme :: IO ()
 genReadme = do
   readmeMd <- readFileBS "README.md"
 
-  readmeHs2 <- readFileBS "tests/Readme2.hs"
+  readmeHs <- readFileBS "tests/Readme.hs"
 
-  let readmeMd2 = convertTo Hs Md def (cs readmeHs2)
+  let readmeMd = convertTo Hs Md def (cs readmeHs)
 
-  Readme2.main
+  Readme.main
 
-  readmeOutput2 <- readFileBS "tests/Readme2.rs"
-  let readmeOutput2' = "```rust\n" <> readmeOutput2 <> "\n```"
+  readmeOutput <- readFileBS "tests/Readme.rs"
+  let readmeOutput' = "```rust\n" <> readmeOutput <> "\n```"
 
 
   let readmeMd' =
@@ -39,7 +39,6 @@ genReadme = do
           & replaceSection "example2" readmeMd2
           & replaceSection "example2out" (cs readmeOutput2')
 
-  -- readmeHs <- readFileBS "tests/Readme.hs"
   writeFileBS "README.md" (cs readmeMd')
 
 tests :: TestTree
