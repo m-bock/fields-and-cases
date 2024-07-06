@@ -3,5 +3,5 @@ cradle:
     - path: "./lib"
       component: "lib:fields-and-cases"
 
-    - path: "./test"
+    - path: "./tests"
       component: "test:test"

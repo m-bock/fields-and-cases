@@ -2,24 +2,29 @@ cabal-version:      2.4
 name:               fields-and-cases
 version:            0.1.0.0
 
--- A short (one-line) description of the package.
-synopsis:           Simplify generation from Haskell types to other languages
+synopsis:           Codegen Haskell types to other languages
 
--- A longer description of the package.
--- description:
+description:
+  This package provides a way to generate code for other languages from Haskell types.
+  It's target language agnostic and based on type classes.
 
--- A URL where users can report bugs.
--- bug-reports:
+bug-reports:
+  https://github.com/thought2/fields-and-cases/issues
 
--- The license under which the package is released.
--- license:
+license:
+  BSD-3-Clause
+
 author:             Michael Bock
 maintainer:         no-day@posteo.net
 
--- A copyright notice.
--- copyright:
--- category:
+category:
+  Development
+
 extra-source-files: CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/thought2/fields-and-cases
 
 common common-opts
   default-language:   Haskell2010
@@ -65,7 +70,7 @@ library
 test-suite test
   import:         common-opts
   type:           exitcode-stdio-1.0
-  other-modules:  Readme1, Readme2
+  other-modules:  Readme1, Readme2, Spec
   hs-source-dirs: tests
   main-is:        test.hs
   build-depends:
@@ -76,3 +81,4 @@ test-suite test
     , string-conversions
     , tasty
     , tasty-hunit
+    , regex-compat

@@ -1,158 +1,58 @@
 module Main where
 
-import Lima.Converter (Format (..), convertTo, def)
-import FieldsAndCases (Case (..), Cases (..), Field (..), Fields (..), PositionalField (..), PositionalFields (..), ToDef, ToRef, TypeDef (..), toRef)
+import Data.String.Conversions (cs)
+import Data.Text (replace)
+import FieldsAndCases (Case (..), IsLang (..), PositionalField (..), PositionalFields (..), QualName (..), ToDef, ToRef, TypeDef (..), toRef)
 import qualified FieldsAndCases as FnC
 import GHC.Generics
 import qualified GHC.Generics as GHC
+import Lima.Converter (Format (..), convertTo, def)
 import Relude
+import Spec (unitTests)
 import Test.Tasty
 import Test.Tasty.HUnit
-import FieldsAndCases (QualName(..))
-import FieldsAndCases (TextLang)
-import FieldsAndCases (IsLang(..))
-import Data.String.Conversions (cs)
-
-instance ToRef TextLang Int where
-  toRef = "Int"
-
-instance ToRef TextLang Float where
-  toRef = "Float"
-
-instance ToRef TextLang Bool where
-  toRef = "Bool"
-
-instance ToRef TextLang Text where
-  toRef = "Text"
-
-instance (ToRef TextLang a) => ToRef TextLang [a] where
-  toRef = "Vec<" <> toRef @_ @a <> ">"
-
-data SampleType2 = SampleType2 Int Bool
-  deriving (Eq, Show, Generic, ToRef TextLang)
-
-data SampleType
-  = Case1 {fieldA :: Int, fieldB :: SampleType2, fieldC :: [Float]}
-  | Case2 Int Text Float
-  | Case3
-  deriving (Eq, Show, Generic, ToRef TextLang)
-
-type Res =
-  M1
-    D
-    ('MetaData "SampleType" "Test.Main" "main" 'False)
-    ( M1
-        C
-        ('MetaCons "Case1" 'PrefixI 'True)
-        ( M1
-            S
-            ( 'MetaSel
-                ('Just "fieldA")
-                'NoSourceUnpackedness
-                'NoSourceStrictness
-                'DecidedLazy
-            )
-            (K1 R Int)
-            :*: ( M1
-                    S
-                    ( 'MetaSel
-                        ('Just "fieldB")
-                        'NoSourceUnpackedness
-                        'NoSourceStrictness
-                        'DecidedLazy
-                    )
-                    (K1 R SampleType2)
-                    :*: M1
-                          S
-                          ( 'MetaSel
-                              ('Just "fieldC")
-                              'NoSourceUnpackedness
-                              'NoSourceStrictness
-                              'DecidedLazy
-                          )
-                          (K1 R [Float])
-                )
-        )
-        :+: ( M1
-                C
-                ('MetaCons "Case2" 'PrefixI 'False)
-                ( M1
-                    S
-                    ( 'MetaSel
-                        'Nothing
-                        'NoSourceUnpackedness
-                        'NoSourceStrictness
-                        'DecidedLazy
-                    )
-                    (K1 R Int)
-                    :*: ( M1
-                            S
-                            ( 'MetaSel
-                                'Nothing
-                                'NoSourceUnpackedness
-                                'NoSourceStrictness
-                                'DecidedLazy
-                            )
-                            (K1 R [Char])
-                            :*: M1
-                                  S
-                                  ( 'MetaSel
-                                      'Nothing
-                                      'NoSourceUnpackedness
-                                      'NoSourceStrictness
-                                      'DecidedLazy
-                                  )
-                                  (K1 R Float)
-                        )
-                )
-                :+: M1 C ('MetaCons "Case3" 'PrefixI 'False) U1
-            )
-    )
-
+import Text.Regex (mkRegex, subRegex)
+import qualified Readme2
 ---
 
 main :: IO ()
 main = do
-  readmeHs <- readFileBS "tests/Readme.hs"
-  let readmeMd = convertTo Hs Md def (cs readmeHs)
-  writeFileBS "README.md" (cs readmeMd)
-  
+  genReadme
   defaultMain tests
+
+genReadme :: IO ()
+genReadme = do
+  readmeMd <- readFileBS "README.md"
+
+  readmeHs2 <- readFileBS "tests/Readme2.hs"
+
+  let readmeMd2 = convertTo Hs Md def (cs readmeHs2)
+
+  Readme2.main
+
+  readmeOutput2 <- readFileBS "tests/Readme2.rs"
+  let readmeOutput2' = "```rust\n" <> readmeOutput2 <> "\n```"
+
+
+  let readmeMd' =
+        cs readmeMd
+          & replaceSection "example2" readmeMd2
+          & replaceSection "example2out" (cs readmeOutput2')
+
+  -- readmeHs <- readFileBS "tests/Readme.hs"
+  writeFileBS "README.md" (cs readmeMd')
 
 tests :: TestTree
 tests = testGroup "Tests" [unitTests]
 
-unitTests =
-  testGroup
-    "Unit tests"
-    [ testCase "..."
-        $ ( FnC.toDef @SampleType @TextLang 
-              @?= TypeDef
-                { typeName = QualName "Main" "SampleType",
-                  cases =
-                    Cases
-                      [ CaseWithFields
-                          { tagName = "Case1",
-                            fields =
-                              Fields
-                                [ Field {fieldName = "fieldA", fieldType = "Int"},
-                                  Field {fieldName = "fieldB", fieldType = typeRef (QualName "Main" "SampleType2")},
-                                  Field {fieldName = "fieldC", fieldType = "Vec<Float>"}
-                                ]
-                          },
-                        CaseWithPositionalFields
-                          { tagName = "Case2",
-                            positionalFields =
-                              PositionalFields
-                                [ PositionalField {fieldType = "Int"},
-                                  PositionalField {fieldType = "Text"},
-                                  PositionalField {fieldType = "Float"}
-                                ]
-                          },
-                        CaseNoFields
-                          { tagName = "Case3"
-                          }
-                      ]
-                }
-          )
-    ]
+replaceSection :: Text -> Text -> Text -> Text
+replaceSection name new doc =
+  let pattern = "<!-- START:" <> name <> " -->(.|\n)*?<!-- END:" <> name <> " -->"
+      replacement = "<!-- START:" <> name <> " -->\n" <> new <> "\n<!-- END:" <> name <> " -->"
+   in regexReplace (cs pattern) replacement doc
+
+-- Replace all occurrences of a pattern in a string
+regexReplace :: Text -> Text -> Text -> Text
+regexReplace pattern replacement input =
+  let regex = mkRegex $ cs pattern
+   in cs $ subRegex regex (cs input) (cs replacement)

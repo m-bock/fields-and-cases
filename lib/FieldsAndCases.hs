@@ -7,41 +7,30 @@ import Relude
 
 data TypeDef lang = TypeDef
   { typeName :: QualName,
-    cases :: Cases lang
+    cases :: [Case lang]
   }
   deriving (Show, Eq)
 
-newtype Cases lang = Cases [Case lang]
-  deriving (Show)
-  deriving newtype (Monoid, Semigroup, Eq)
-
-data Case lang
-  = CaseWithFields
-      { tagName :: Text,
-        fields :: Fields lang
-      }
-  | CaseNoFields
-      { tagName :: Text
-      }
-  | CaseWithPositionalFields
-      { tagName :: Text,
-        positionalFields :: PositionalFields lang
-      }
+data Case lang = Case
+  { tagName :: Text,
+    caseFields :: Maybe (CaseFields lang)
+  }
   deriving (Show, Eq)
 
-newtype Fields lang = Fields
-  { fields :: [Field lang]
-  }
+data CaseFields lang
+  = CasePositionalFields [PositionalField lang]
+  | CaseLabeledFields [LabeledField lang]
+  deriving (Show, Eq)
+
+newtype ListOfF f a = ListOfF [f a]
   deriving (Show)
   deriving newtype (Monoid, Semigroup, Eq)
 
-newtype PositionalFields lang = PositionalFields
-  { fields :: [PositionalField lang]
-  }
-  deriving (Show)
-  deriving newtype (Monoid, Semigroup, Eq)
+type LabeledFields lang = ListOfF LabeledField lang
 
-data Field lang = Field
+type PositionalFields lang = ListOfF PositionalField lang
+
+data LabeledField lang = LabeledField
   { fieldName :: Text,
     fieldType :: lang
   }
@@ -114,7 +103,7 @@ class GToDef rep def lang where
 
 -- Match Data Type
 instance
-  (GToDef cases Cases lang, KnownSymbol typeName, KnownSymbol moduleName) =>
+  (GToDef cases (ListOfF Case) lang, KnownSymbol typeName, KnownSymbol moduleName) =>
   GToDef
     (M1 {- MetaInfo -} D {- DataType -} ('MetaData typeName moduleName packageName isNewtype) cases)
     TypeDef
@@ -122,7 +111,7 @@ instance
   where
   gToDef _ = result
     where
-      cases :: Cases lang
+      cases :: ListOfF Case lang
       cases = gToDef (error "no value" :: cases x)
 
       moduleName :: Text
@@ -135,72 +124,80 @@ instance
       qualName = QualName {moduleName, typeName}
 
       result :: TypeDef lang
-      result = TypeDef qualName cases
+      result = TypeDef qualName (coerce cases)
 
 -- Match Sum
 instance
-  (GToDef lhs Cases lang, GToDef rhs Cases lang) =>
+  (GToDef lhs (ListOfF Case) lang, GToDef rhs (ListOfF Case) lang) =>
   GToDef
     (lhs :+: rhs)
-    Cases
+    (ListOfF Case)
     lang
   where
   gToDef _ = result
     where
-      lhs :: Cases lang
+      lhs :: ListOfF Case lang
       lhs = gToDef (error "no value" :: lhs x)
 
-      rhs :: Cases lang
+      rhs :: ListOfF Case lang
       rhs = gToDef (error "no value" :: rhs x)
 
-      result :: Cases lang
+      result :: ListOfF Case lang
       result = lhs <> rhs
 
 -- Match Constructor with fields
 instance
   {-# OVERLAPPABLE #-}
-  (KnownSymbol ctorName, GToDef fields Fields lang) =>
+  (KnownSymbol ctorName, GToDef fields (ListOfF LabeledField) lang) =>
   GToDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'True) fields)
-    Cases
+    (ListOfF Case)
     lang
   where
   gToDef _ = result
     where
-      fields :: Fields lang
+      fields :: LabeledFields lang
       fields = gToDef (error "no value" :: fields x)
 
-      ctorName :: Text
-      ctorName = fromString $ symbolVal (Proxy @ctorName)
+      tagName :: Text
+      tagName = fromString $ symbolVal (Proxy @ctorName)
 
       case_ :: Case lang
-      case_ = CaseWithFields ctorName fields
+      case_ =
+        Case
+          { tagName,
+            caseFields = Just $ CaseLabeledFields (coerce fields)
+          }
 
-      result :: Cases lang
-      result = Cases [case_]
+      result :: ListOfF Case lang
+      result = coerce [case_]
 
 -- Match Constructor with positional fields
 instance
   {-# OVERLAPPABLE #-}
-  (KnownSymbol ctorName, GToDef fields PositionalFields lang) =>
+  (KnownSymbol ctorName, GToDef fields (ListOfF PositionalField) lang) =>
   GToDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'False {- hasSelectors -}) fields)
-    Cases
+    (ListOfF Case)
     lang
   where
   gToDef _ = result
     where
-      ctorName :: Text
-      ctorName = fromString $ symbolVal (Proxy @ctorName)
+      tagName :: Text
+      tagName = fromString $ symbolVal (Proxy @ctorName)
 
       fields :: PositionalFields lang
       fields = gToDef (error "no value" :: fields x)
 
       case_ :: Case lang
-      case_ = CaseWithPositionalFields ctorName fields
+      case_ =
+        Case
+          { tagName,
+            caseFields = Just $ CasePositionalFields (coerce fields)
+          }
 
-      result :: Cases lang
-      result = Cases [case_]
+      result :: ListOfF Case lang
+      result = coerce [case_]
 
 -- Match Constructor without fields
 instance
@@ -208,19 +205,19 @@ instance
   (KnownSymbol ctorName) =>
   GToDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'False {- hasSelectors -}) U1 {- Unit -})
-    Cases
+    (ListOfF Case)
     lang
   where
   gToDef _ = result
     where
-      ctorName :: Text
-      ctorName = fromString $ symbolVal (Proxy @ctorName)
+      tagName :: Text
+      tagName = fromString $ symbolVal (Proxy @ctorName)
 
       case_ :: Case lang
-      case_ = CaseNoFields ctorName
+      case_ = Case {tagName, caseFields = Nothing}
 
-      result :: Cases lang
-      result = Cases [case_]
+      result :: ListOfF Case lang
+      result = coerce [case_]
 
 -- Match Product
 instance
@@ -247,7 +244,7 @@ instance
   (ToRef lang a, KnownSymbol fieldName) =>
   GToDef
     (M1 {- MetaInfo -} S {- Selector -} ('MetaSel ('Just fieldName) srcUnpackedness srcStrictness inferedStrictness) (K1 R a))
-    Fields
+    (ListOfF LabeledField)
     lang
   where
   gToDef _ = result
@@ -258,11 +255,11 @@ instance
       fieldType :: lang
       fieldType = toRef @lang @a
 
-      field :: Field lang
-      field = Field {fieldName, fieldType}
+      field :: LabeledField lang
+      field = LabeledField {fieldName, fieldType}
 
-      result :: Fields lang
-      result = Fields [field]
+      result :: LabeledFields lang
+      result = ListOfF [field]
 
 -- Match Positional Field
 instance
@@ -270,7 +267,7 @@ instance
   (ToRef lang a) =>
   GToDef
     (M1 {- MetaInfo -} S {- Selector -} ('MetaSel 'Nothing srcUnpackedness srcStrictness inferedStrictness) (K1 R a))
-    PositionalFields
+    (ListOfF PositionalField)
     lang
   where
   gToDef _ = result
@@ -282,7 +279,7 @@ instance
       field = PositionalField {fieldType}
 
       result :: PositionalFields lang
-      result = PositionalFields [field]
+      result = ListOfF [field]
 
 --- Utils ---
 
