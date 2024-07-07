@@ -15,6 +15,8 @@ import System.Process (callCommand)
 -}
 
 {-
+### Define custom types
+
 Let' say we have the following data types in Haskell:
 -}
 
@@ -55,6 +57,8 @@ We use those types in other codebases that are written in different languages.
 Now we want to have a flexible yet automated way to generate the equivalent data types in those languages.
 We'll do so as an example for Rust. The library is language agnostic and can be used for any language.
 
+### Define type for target language
+
 
 First we define a type that represents the Rust code. In this demo it's a simple newtype wrapper around Text.
 That already works very well, but you could also define and use a custom AST type instead.
@@ -70,6 +74,8 @@ newtype RustCode = RustCode Text
 Now we define instances for the ToRef typeclass. It's a typeclass parameterized by two types:
 - The language type (RustCode in this case)
 - The type we want to generate a reference for (Text, Int, Bool, Maybe a, [a], ...)
+
+### Define instances for primitive types
 
 
 Let's start with instance for the primitive types:
@@ -87,6 +93,8 @@ instance FnC.ToRef RustCode Bool where
 
 {-
 
+### Define instances for composite types
+
 And then add some instance for composite types. We use the `ref` function to reference type arguments:
 
 -}
@@ -101,6 +109,7 @@ instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode [a] where
 
 {-
 
+### Derive instances for custom types
 
 Until now we have covered the basic types. Now we define instances for our buisness types.
 We don't need to define all those fields and cases manually:
@@ -116,6 +125,9 @@ instance FnC.ToRef RustCode Vector
 instance FnC.ToRef RustCode Person
 
 {-
+
+### Define 
+
 
 However, we need a function that generates the Rust code for a given type definition.
 It is very straightforward to implement, we just need to pattern match on the cases of the type definition.
@@ -166,6 +178,10 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
       fold [fieldName, ":", toText fieldType, ","]
 
 {-
+
+### Compose a module in the target language
+
+
 Finally we can define a rust module that contains the generated code:
 -}
 
@@ -180,6 +196,9 @@ code =
     ]
 
 {-
+
+### Write generated code to a file
+
 And we can write the generated code to a file, as well as format it with rustfmt:
 -}
 
