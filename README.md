@@ -14,6 +14,9 @@ import System.Process (callCommand)
 
 -->
 
+
+Let' say we have the following data types in Haskell:
+
 ```haskell
 data Activity
   = Working
@@ -47,7 +50,14 @@ data Person = Person
     (Show, Eq, Generic)
 ```
 
-...
+We use those types in other codebases that are written in different languages.
+Now we want to have a flexible yet automated way to generate the equivalent data types in those languages.
+We'll do so as an example for Rust. The library is language agnostic and can be used for any language.
+
+
+First we define a type that represents the Rust code. In this demo it's a simple newtype wrapper around Text.
+That already works very well, but you could also define and use a custom AST type instead.
+All it needs is an instance of IsLang and ToText. In our simple case we can derive those instances.
 
 ```haskell
 newtype RustCode = RustCode Text
@@ -55,7 +65,12 @@ newtype RustCode = RustCode Text
   deriving newtype (IsString, Semigroup, FnC.IsLang, ToText)
 ```
 
-...
+Now we define instances for the ToRef typeclass. It's a typeclass parameterized by two types:
+- The language type (RustCode in this case)
+- The type we want to generate a reference for (Text, Int, Bool, Maybe a, [a], ...)
+
+
+Let's start with instance for the primitive types:
 
 ```haskell
 instance FnC.ToRef RustCode Text where
@@ -68,7 +83,7 @@ instance FnC.ToRef RustCode Bool where
   toRef = "bool"
 ```
 
-...
+And then add some instance for composite types. We use the `ref` function to reference type arguments:
 
 ```haskell
 instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode (Maybe a) where
@@ -80,7 +95,8 @@ instance (FnC.ToRef RustCode a) => FnC.ToRef RustCode [a] where
     "Vec<" <> FnC.ref @a <> ">"
 ```
 
-...
+Until now we have covered the basic types. Now we define instances for our buisness types.
+We don't need to define all those fields and cases manually:
 
 ```haskell
 instance FnC.ToRef RustCode Activity
@@ -92,7 +108,7 @@ instance FnC.ToRef RustCode Vector
 instance FnC.ToRef RustCode Person
 ```
 
-...
+However, we need a function that generates the Rust code for a given type definition:
 
 ```haskell
 genRustTypeDef :: FnC.TypeDef RustCode -> Text
@@ -100,9 +116,9 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
   case cases of
     [FnC.Case {tagName, caseFields = Just (FnC.CaseLabeledFields fields)}]
       | typeName == tagName ->
-          genStruct typeName fields
+          genStruct typeName fields <> "\n"
     cases ->
-      genEnum typeName cases
+      genEnum typeName cases <> "\n"
   where
     genStruct :: Text -> [FnC.LabeledField RustCode] -> Text
     genStruct name fields =
@@ -138,7 +154,7 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
       fold [fieldName, ":", toText fieldType, ","]
 ```
 
-...
+Finally we can define a rust module that contains the generated code:
 
 ```haskell
 code :: Text
@@ -152,7 +168,7 @@ code =
     ]
 ```
 
-...
+And we can write the generated code to a file, as well as format it with rustfmt:
 
 ```haskell
 main :: IO ()
@@ -176,15 +192,18 @@ struct Person {
     activity: Activity,
     coordinates: Vector,
 }
+
 enum Activity {
     Working,
     Studying { hours: i32, subject: Option<String> },
     Training { location: Location },
 }
+
 enum Location {
     Indoor,
     Outdoor,
 }
+
 struct Vector {
     x: i32,
     y: i32,
