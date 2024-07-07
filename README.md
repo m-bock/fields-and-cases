@@ -118,22 +118,24 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
       fold
         [ "enum " <> name,
           "{",
-          foldMap
-            ( \FnC.Case {tagName, caseFields} ->
-                fold
-                  [ tagName,
-                    case caseFields of
-                      Nothing -> ""
-                      Just (FnC.CaseLabeledFields fields) -> fold ["{", foldMap genField fields, "}"],
-                    ","
-                  ]
-            )
-            cases,
+          foldMap genCase cases,
           "}"
         ]
 
+    genCase :: FnC.Case RustCode -> Text
+    genCase (FnC.Case {tagName, caseFields}) =
+      fold
+        [ tagName,
+          case caseFields of
+            Nothing -> ""
+            Just (FnC.CaseLabeledFields fields) ->
+              fold ["{", foldMap genField fields, "}"],
+          ","
+        ]
+
     genField :: LabeledField RustCode -> Text
-    genField (LabeledField {fieldName, fieldType}) = fold [fieldName, ":", toText fieldType, ","]
+    genField (LabeledField {fieldName, fieldType}) =
+      fold [fieldName, ":", toText fieldType, ","]
 ```
 
 ...

@@ -51,7 +51,6 @@ common common-opts
 library
   import:          common-opts
   exposed-modules: FieldsAndCases
-  other-modules:   Tree
   build-depends:
     , base                ^>=4.17.2.0
     , relude
