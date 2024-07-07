@@ -108,7 +108,9 @@ instance FnC.ToRef RustCode Vector
 instance FnC.ToRef RustCode Person
 ```
 
-However, we need a function that generates the Rust code for a given type definition:
+However, we need a function that generates the Rust code for a given type definition.
+It is very straightforward to implement, we just need to pattern match on the cases of the type definition.
+We don't need to deal with tricky wizardry like generics or typeclasses, this is all handled by the library:
 
 ```haskell
 genRustTypeDef :: FnC.TypeDef RustCode -> Text
@@ -179,6 +181,8 @@ main = do
 ```
 
 <!-- END:example -->
+
+The result will look like this:
 
 <!-- START:exampleOut -->
 ```rust
