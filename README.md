@@ -100,46 +100,40 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
   case cases of
     [FnC.Case {tagName, caseFields = Just (FnC.CaseLabeledFields fields)}]
       | typeName == tagName ->
-          genRustStruct typeName fields
+          genStruct typeName fields
     cases ->
-      genRustEnum typeName cases
-```
+      genEnum typeName cases
+  where
+    genStruct :: Text -> [FnC.LabeledField RustCode] -> Text
+    genStruct name fields =
+      fold
+        [ "struct " <> name,
+          "{",
+          foldMap genField fields,
+          "}"
+        ]
 
-...
+    genEnum :: Text -> [FnC.Case RustCode] -> Text
+    genEnum name cases =
+      fold
+        [ "enum " <> name,
+          "{",
+          foldMap
+            ( \FnC.Case {tagName, caseFields} ->
+                fold
+                  [ tagName,
+                    case caseFields of
+                      Nothing -> ""
+                      Just (FnC.CaseLabeledFields fields) -> fold ["{", foldMap genField fields, "}"],
+                    ","
+                  ]
+            )
+            cases,
+          "}"
+        ]
 
-```haskell
-genRustStruct :: Text -> [FnC.LabeledField RustCode] -> Text
-genRustStruct name fields =
-  fold
-    [ "struct " <> name,
-      "{",
-      foldMap (\(LabeledField {fieldName, fieldType}) -> fold [fieldName, ":", toText fieldType, ","]) fields,
-      "}"
-    ]
-
-genRustEnum :: Text -> [FnC.Case RustCode] -> Text
-genRustEnum name cases =
-  fold
-    [ "enum " <> name,
-      "{",
-      foldMap
-        ( \FnC.Case {tagName, caseFields} ->
-            fold
-              [ tagName,
-                case caseFields of
-                  Nothing -> ""
-                  Just (FnC.CaseLabeledFields fields) ->
-                    fold
-                      [ "{",
-                        foldMap (\(LabeledField {fieldName, fieldType}) -> fold [fieldName, ":", toText fieldType, ","]) fields,
-                        "}"
-                      ],
-                ","
-              ]
-        )
-        cases,
-      "}"
-    ]
+    genField :: LabeledField RustCode -> Text
+    genField (LabeledField {fieldName, fieldType}) = fold [fieldName, ":", toText fieldType, ","]
 ```
 
 ...
