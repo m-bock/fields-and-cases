@@ -6,8 +6,10 @@ module Readme where
 
 import Data.String.Conversions (cs)
 import qualified Data.Text as Txt
+import FieldsAndCases (LabeledField (LabeledField))
 import qualified FieldsAndCases as FnC
 import Relude
+import System.Process (callCommand)
 ```
 
 -->
@@ -107,36 +109,37 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
 
 ```haskell
 genRustStruct :: Text -> [FnC.LabeledField RustCode] -> Text
-genRustStruct typeName fields =
-  unlines
-    [ "struct " <> typeName <> "{",
-      fields
-        & foldMap (\(FnC.LabeledField {fieldName, fieldType}) -> "  " <> fieldName <> ": " <> toText fieldType <> ",\n"),
+genRustStruct name fields =
+  fold
+    [ "struct " <> name,
+      "{",
+      foldMap (\(LabeledField {fieldName, fieldType}) -> fold [fieldName, ":", toText fieldType, ","]) fields,
       "}"
     ]
 
 genRustEnum :: Text -> [FnC.Case RustCode] -> Text
-genRustEnum typeName cases =
-  unlines
-    [ "enum " <> typeName <> " {",
-      cases
-        & map (\(FnC.Case {tagName, caseFields}) -> "  " <> tagName <> " " <> genFields caseFields)
-        & Txt.intercalate ",\n",
+genRustEnum name cases =
+  fold
+    [ "enum " <> name,
+      "{",
+      foldMap
+        ( \FnC.Case {tagName, caseFields} ->
+            fold
+              [ tagName,
+                case caseFields of
+                  Nothing -> ""
+                  Just (FnC.CaseLabeledFields fields) ->
+                    fold
+                      [ "{",
+                        foldMap (\(LabeledField {fieldName, fieldType}) -> fold [fieldName, ":", toText fieldType, ","]) fields,
+                        "}"
+                      ],
+                ","
+              ]
+        )
+        cases,
       "}"
     ]
-  where
-    genFields :: Maybe (FnC.CaseFields RustCode) -> Text
-    genFields = \case
-      Nothing -> ""
-      Just (FnC.CaseLabeledFields fields) ->
-        unwords
-          [ "{",
-            fields
-              & map (\(FnC.LabeledField {fieldName, fieldType}) -> fieldName <> ": " <> toText fieldType)
-              & Txt.intercalate ", ",
-            "}"
-          ]
-      Just (FnC.CasePositionalFields fields) -> error "positional fields not supported in this demo"
 ```
 
 ...
@@ -158,7 +161,9 @@ code =
 ```haskell
 main :: IO ()
 main = do
-  writeFile "tests/Readme.rs" (cs code)
+  let filePath = "tests/Readme.rs"
+  writeFile filePath (cs code)
+  callCommand ("rustfmt --force " <> filePath)
 ```
 
 <!-- END:example -->
@@ -167,33 +172,27 @@ main = do
 ```rust
 //! This is an auto generated Rust Module
 
-struct Person{
-  name: String,
-  age: i32,
-  isStudent: bool,
-  friends: Vec<String>,
-  activity: Activity,
-  coordinates: Vector,
-
+struct Person {
+    name: String,
+    age: i32,
+    isStudent: bool,
+    friends: Vec<String>,
+    activity: Activity,
+    coordinates: Vector,
 }
-
 enum Activity {
-  Working ,
-  Studying { hours: i32, subject: Option<String> },
-  Training { location: Location }
+    Working,
+    Studying { hours: i32, subject: Option<String> },
+    Training { location: Location },
 }
-
 enum Location {
-  Indoor ,
-  Outdoor 
+    Indoor,
+    Outdoor,
 }
-
-struct Vector{
-  x: i32,
-  y: i32,
-
+struct Vector {
+    x: i32,
+    y: i32,
 }
-
 
 ```
 <!-- END:exampleOut -->

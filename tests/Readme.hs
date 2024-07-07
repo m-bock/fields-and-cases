@@ -5,8 +5,10 @@ module Readme where
 
 import Data.String.Conversions (cs)
 import qualified Data.Text as Txt
+import FieldsAndCases (LabeledField (LabeledField))
 import qualified FieldsAndCases as FnC
 import Relude
+import System.Process (callCommand)
 
 {-
 -->
@@ -97,45 +99,40 @@ genRustTypeDef (FnC.TypeDef {typeName = FnC.QualName {typeName}, cases}) =
   case cases of
     [FnC.Case {tagName, caseFields = Just (FnC.CaseLabeledFields fields)}]
       | typeName == tagName ->
-          genRustStruct typeName fields
+          genStruct typeName fields
     cases ->
-      genRustEnum typeName cases
-
-{-
-...
--}
-
-genRustStruct :: Text -> [FnC.LabeledField RustCode] -> Text
-genRustStruct typeName fields =
-  unlines
-    [ "struct " <> typeName <> "{",
-      fields
-        & foldMap (\(FnC.LabeledField {fieldName, fieldType}) -> "  " <> fieldName <> ": " <> toText fieldType <> ",\n"),
-      "}"
-    ]
-
-genRustEnum :: Text -> [FnC.Case RustCode] -> Text
-genRustEnum typeName cases =
-  unlines
-    [ "enum " <> typeName <> " {",
-      cases
-        & map (\(FnC.Case {tagName, caseFields}) -> "  " <> tagName <> " " <> genFields caseFields)
-        & Txt.intercalate ",\n",
-      "}"
-    ]
+      genEnum typeName cases
   where
-    genFields :: Maybe (FnC.CaseFields RustCode) -> Text
-    genFields = \case
-      Nothing -> ""
-      Just (FnC.CaseLabeledFields fields) ->
-        unwords
-          [ "{",
-            fields
-              & map (\(FnC.LabeledField {fieldName, fieldType}) -> fieldName <> ": " <> toText fieldType)
-              & Txt.intercalate ", ",
-            "}"
-          ]
-      Just (FnC.CasePositionalFields fields) -> error "positional fields not supported in this demo"
+    genStruct :: Text -> [FnC.LabeledField RustCode] -> Text
+    genStruct name fields =
+      fold
+        [ "struct " <> name,
+          "{",
+          foldMap genField fields,
+          "}"
+        ]
+
+    genEnum :: Text -> [FnC.Case RustCode] -> Text
+    genEnum name cases =
+      fold
+        [ "enum " <> name,
+          "{",
+          foldMap
+            ( \FnC.Case {tagName, caseFields} ->
+                fold
+                  [ tagName,
+                    case caseFields of
+                      Nothing -> ""
+                      Just (FnC.CaseLabeledFields fields) -> fold ["{", foldMap genField fields, "}"],
+                    ","
+                  ]
+            )
+            cases,
+          "}"
+        ]
+
+    genField :: LabeledField RustCode -> Text
+    genField (LabeledField {fieldName, fieldType}) = fold [fieldName, ":", toText fieldType, ","]
 
 {-
 ...
@@ -157,4 +154,6 @@ code =
 
 main :: IO ()
 main = do
-  writeFile "tests/Readme.rs" (cs code)
+  let filePath = "tests/Readme.rs"
+  writeFile filePath (cs code)
+  callCommand ("rustfmt --force " <> filePath)

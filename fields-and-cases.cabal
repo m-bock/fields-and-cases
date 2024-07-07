@@ -1,29 +1,20 @@
 cabal-version:      2.4
 name:               fields-and-cases
 version:            0.1.0.0
-
 synopsis:           Codegen Haskell types to other languages
-
 description:
   This package provides a way to generate code for other languages from Haskell types.
   It's target language agnostic and based on type classes.
 
-bug-reports:
-  https://github.com/thought2/fields-and-cases/issues
-
-license:
-  BSD-3-Clause
-
+bug-reports:        https://github.com/thought2/fields-and-cases/issues
+license:            BSD-3-Clause
 author:             Michael Bock
 maintainer:         no-day@posteo.net
-
-category:
-  Development
-
+category:           Development
 extra-source-files: CHANGELOG.md
 
 source-repository head
-  type: git
+  type:     git
   location: https://github.com/thought2/fields-and-cases
 
 common common-opts
@@ -33,15 +24,16 @@ common common-opts
     ConstraintKinds
     DataKinds
     DefaultSignatures
+    DeriveAnyClass
     DeriveGeneric
     DerivingVia
-    DeriveAnyClass
     DuplicateRecordFields
     FlexibleContexts
     FlexibleInstances
     FunctionalDependencies
     GADTs
     GeneralizedNewtypeDeriving
+    LambdaCase
     MultiParamTypeClasses
     NamedFieldPuns
     NoImplicitPrelude
@@ -55,11 +47,11 @@ common common-opts
     TypeOperators
     UndecidableInstances
     UndecidableSuperClasses
-    LambdaCase
 
 library
   import:          common-opts
   exposed-modules: FieldsAndCases
+  other-modules:   Tree
   build-depends:
     , base                ^>=4.17.2.0
     , relude
@@ -70,15 +62,19 @@ library
 test-suite test
   import:         common-opts
   type:           exitcode-stdio-1.0
-  other-modules:  Readme, Spec
+  other-modules:
+    Readme
+    Spec
+
   hs-source-dirs: tests
   main-is:        test.hs
   build-depends:
     , base                ^>=4.17.2.0
     , fields-and-cases
     , lima
+    , regex-compat
     , relude
     , string-conversions
     , tasty
     , tasty-hunit
-    , regex-compat
+    , process
