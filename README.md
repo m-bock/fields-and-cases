@@ -7,7 +7,7 @@
   - [Module setup](#module-setup)
   - [Define custom types](#define-custom-types)
   - [Define "language types" for target language](#define-language-types-for-target-language)
-  - [Define instances](#define-instances)
+  - [Define `TypeExpr` instances](#define-typeexpr-instances)
     - [Primitive types](#primitive-types)
     - [Composite types](#composite-types)
     - [Custom types](#custom-types)
