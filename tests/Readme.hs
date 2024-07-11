@@ -202,7 +202,50 @@ instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Place lang
 
 instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Vector lang
 
----
+{-
+...
+-}
+xx :: FnC.TypeDef Rust
+xx =
+  FnC.TypeDef
+    { qualifiedName = FnC.QualifiedName {moduleName = "Readme", typeName = "Activity"},
+      cases =
+        [ FnC.Case
+            { tagName = "Working",
+              caseArgs = Nothing
+            },
+          FnC.Case
+            { tagName = "Studying",
+              caseArgs =
+                Just
+                  ( FnC.CaseFields
+                      [ FnC.Field {fieldName = "hours", fieldType = Rust "i32"},
+                        FnC.Field {fieldName = "subject", fieldType = Rust "Option<String>"}
+                      ]
+                  )
+            },
+          FnC.Case
+            { tagName = "Training",
+              caseArgs =
+                Just
+                  ( FnC.CaseFields
+                      [ FnC.Field {fieldName = "place", fieldType = Rust "Place"}
+                      ]
+                  )
+            }
+        ]
+    }
+
+{-
+...
+-}
+
+yy :: FnC.TypeDef Rust
+yy = FnC.toTypeDef @Person @Rust
+
+{-
+...
+-}
 
 unitTests :: Spec.TestTree
 unitTests =
@@ -211,36 +254,8 @@ unitTests =
     $ do
       Spec.assertEqual
         "k"
-        ( FnC.TypeDef
-            { qualifiedName = FnC.QualifiedName {moduleName = "Readme", typeName = "Activity"},
-              cases =
-                [ FnC.Case
-                    { tagName = "Working",
-                      caseArgs = Nothing
-                    },
-                  FnC.Case
-                    { tagName = "Studying",
-                      caseArgs =
-                        Just
-                          ( FnC.CaseFields
-                              [ FnC.Field {fieldName = "hours", fieldType = Rust "i32"},
-                                FnC.Field {fieldName = "subject", fieldType = Rust "Option<String>"}
-                              ]
-                          )
-                    },
-                  FnC.Case
-                    { tagName = "Training",
-                      caseArgs =
-                        Just
-                          ( FnC.CaseFields
-                              [ FnC.Field {fieldName = "place", fieldType = Rust "Place"}
-                              ]
-                          )
-                    }
-                ]
-            }
-        )
-        (FnC.toTypeDef @Person @Rust)
+        xx
+        yy
 
 {-
 
