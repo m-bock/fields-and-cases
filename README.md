@@ -46,7 +46,7 @@ We'll need to activate the following language extensions:
 <!--
 
 ```haskell
-module Readme (main) where
+module Readme where -- (main) where
 ```
 
 -->
@@ -59,6 +59,8 @@ import qualified Data.Text as Txt
 import qualified FieldsAndCases as FnC
 import Relude
 import System.Process (callCommand)
+import qualified Test.Tasty as Spec
+import qualified Test.Tasty.HUnit as Spec
 ```
 
 ### Define custom types
@@ -126,7 +128,7 @@ newtype TypeScript = TypeScript Text
   deriving (Show, Eq, IsString, Semigroup, ToText, FnC.IsTypeExpr)
 ```
 
-### Define instances
+### Define `TypeExpr` instances
 
 Now we define instances for the `FnC.TypeExpr` typeclass.
 It's a typeclass parameterized by two types:
@@ -213,6 +215,46 @@ instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Activity lang
 instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Place lang
 
 instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Vector lang
+
+---
+
+unitTests :: Spec.TestTree
+unitTests =
+  Spec.testCase
+    "..."
+    $ do
+      Spec.assertEqual
+        "k"
+        ( FnC.TypeDef
+            { qualifiedName = FnC.QualifiedName {moduleName = "Readme", typeName = "Activity"},
+              cases =
+                [ FnC.Case
+                    { tagName = "Working",
+                      caseArgs = Nothing
+                    },
+                  FnC.Case
+                    { tagName = "Studying",
+                      caseArgs =
+                        Just
+                          ( FnC.CaseFields
+                              [ FnC.Field {fieldName = "hours", fieldType = Rust "i32"},
+                                FnC.Field {fieldName = "subject", fieldType = Rust "Option<String>"}
+                              ]
+                          )
+                    },
+                  FnC.Case
+                    { tagName = "Training",
+                      caseArgs =
+                        Just
+                          ( FnC.CaseFields
+                              [ FnC.Field {fieldName = "place", fieldType = Rust "Place"}
+                              ]
+                          )
+                    }
+                ]
+            }
+        )
+        (FnC.toTypeDef @Person @Rust)
 ```
 
 ### Define
@@ -261,29 +303,34 @@ printTypeScriptDef :: FnC.TypeDef TypeScript -> Text
 printTypeScriptDef typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
   case typeDef of
     (FnC.matchRecordLikeDataType -> Just (tagName, fields)) ->
-      fold ["type " <> typeName, " = {", foldMap printTypeScriptField fields, "}", "\n"]
+      fold ["type " <> typeName, " = {", foldMap printTSField fields, "}", "\n"]
     (FnC.isEnumWithoutData -> True) ->
       fold ["type " <> typeName, " = ", foldMap printCaseNoData cases, "\n"]
     _ ->
       fold ["type " <> typeName, " = ", foldMap printCase cases, "\n"]
+
+printTSField :: FnC.Field TypeScript -> Text
+printTSField (FnC.Field {fieldName, fieldType = TypeScript code}) =
+  fold
+    [fieldName, if omittable then "?" else "", ":", code, ";"]
   where
-    printTypeScriptField (FnC.Field {fieldName, fieldType = TypeScript code}) =
-      fold
-        [fieldName, if Txt.isPrefixOf "(null |" code then "?" else "", ":", code, ";"]
+    omittable = Txt.isPrefixOf "(null |" code
 
-    printCase (FnC.Case {tagName, caseArgs}) =
-      fold
-        [ "| {",
-          "tag: '" <> tagName <> "'",
-          case caseArgs of
-            Nothing -> ","
-            Just (FnC.CaseFields fields) ->
-              fold [", value: {", foldMap printTypeScriptField fields, "}", ","],
-          "}"
-        ]
+printCase :: FnC.Case TypeScript -> Text
+printCase (FnC.Case {tagName, caseArgs}) =
+  fold
+    [ "| {",
+      "tag: '" <> tagName <> "'",
+      case caseArgs of
+        Nothing -> ","
+        Just (FnC.CaseFields fields) ->
+          fold [", value: {", foldMap printTSField fields, "}", ","],
+      "}"
+    ]
 
-    printCaseNoData (FnC.Case {tagName}) =
-      "| '" <> tagName <> "'"
+printCaseNoData :: FnC.Case texpr -> Text
+printCaseNoData (FnC.Case {tagName}) =
+  "| '" <> tagName <> "'"
 ```
 
 ### Compose a module for the target language
