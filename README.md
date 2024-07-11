@@ -221,45 +221,53 @@ However, we need a function that generates the Rust code for a given type defini
 It is very straightforward to implement, we just need to pattern match on the cases of the type definition.
 We don't need to deal with tricky wizardry like generics or typeclasses, this is all handled by the library:
 
-<!-- ... -->
+
+
+_Rust:_
 
 ```haskell
-printRust :: FnC.TypeDef Rust -> Text
-printRust typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
+printRustDef :: FnC.TypeDef Rust -> Text
+printRustDef typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
   case FnC.matchRecordLikeDataType typeDef of
     Just (tagName, fields) ->
-      fold ["struct " <> typeName, "{", foldMap printField fields, "}", "\n"]
+      fold ["struct " <> typeName, "{", foldMap printRustField fields, "}", "\n"]
     Nothing ->
-      fold ["enum " <> typeName, "{", foldMap printCase cases, "}", "\n"]
-  where
-    printField (FnC.Field {fieldName, fieldType}) =
-      fold
-        [fieldName, ":", toText fieldType, ","]
-
-    printCase (FnC.Case {tagName, caseArgs}) =
-      fold
-        [ tagName,
-          case caseArgs of
-            Nothing -> ","
-            Just (FnC.CaseFields fields) ->
-              fold ["{", foldMap printField fields, "}", ","]
-        ]
+      fold ["enum " <> typeName, "{", foldMap printRustCase cases, "}", "\n"]
 ```
 
-<!-- ... -->
+...
 
 ```haskell
-printTypeScript :: FnC.TypeDef TypeScript -> Text
-printTypeScript typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
+printRustField :: FnC.Field Rust -> Text
+printRustField (FnC.Field {fieldName, fieldType}) =
+  fold
+    [fieldName, ":", toText fieldType, ","]
+
+printRustCase :: FnC.Case Rust -> Text
+printRustCase (FnC.Case {tagName, caseArgs}) =
+  fold
+    [ tagName,
+      case caseArgs of
+        Nothing -> ","
+        Just (FnC.CaseFields fields) ->
+          fold ["{", foldMap printRustField fields, "}", ","]
+    ]
+```
+
+TypeScript:
+
+```haskell
+printTypeScriptDef :: FnC.TypeDef TypeScript -> Text
+printTypeScriptDef typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
   case typeDef of
     (FnC.matchRecordLikeDataType -> Just (tagName, fields)) ->
-      fold ["type " <> typeName, " = {", foldMap printField fields, "}", "\n"]
+      fold ["type " <> typeName, " = {", foldMap printTypeScriptField fields, "}", "\n"]
     (FnC.isEnumWithoutData -> True) ->
       fold ["type " <> typeName, " = ", foldMap printCaseNoData cases, "\n"]
     _ ->
       fold ["type " <> typeName, " = ", foldMap printCase cases, "\n"]
   where
-    printField (FnC.Field {fieldName, fieldType = TypeScript code}) =
+    printTypeScriptField (FnC.Field {fieldName, fieldType = TypeScript code}) =
       fold
         [fieldName, if Txt.isPrefixOf "(null |" code then "?" else "", ":", code, ";"]
 
@@ -270,7 +278,7 @@ printTypeScript typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeNam
           case caseArgs of
             Nothing -> ","
             Just (FnC.CaseFields fields) ->
-              fold [", value: {", foldMap printField fields, "}", ","],
+              fold [", value: {", foldMap printTypeScriptField fields, "}", ","],
           "}"
         ]
 
@@ -294,14 +302,14 @@ codeRust :: Text
 codeRust =
   unlines
     [ "//! This is an auto generated Rust Module\n",
-      unlines $ map printRust (FnC.toTypeDefs @ExportTypes @Rust)
+      unlines $ map printRustDef (FnC.toTypeDefs @ExportTypes @Rust)
     ]
 
 codeTypeScript :: Text
 codeTypeScript =
   unlines
     [ "// This is an auto generated TypeScript Module\n",
-      unlines $ map printTypeScript (FnC.toTypeDefs @ExportTypes @TypeScript)
+      unlines $ map printTypeScriptDef (FnC.toTypeDefs @ExportTypes @TypeScript)
     ]
 ```
 
