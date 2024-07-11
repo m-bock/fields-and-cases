@@ -1,20 +1,22 @@
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+
+
+
 module Spec where
 
 import Data.String.Conversions (cs)
 import Data.Text (replace)
-import FieldsAndCases
-  ( Case (..),
-    CaseFields (..),
-    IsLang (..),
-    LabeledField (..),
-    PositionalField (..),
-    QualName (..),
-    Ref (..),
-    ToDef,
-    ToRef (toRef),
-    TypeDef (..),
-    toRef,
-  )
 import qualified FieldsAndCases as FnC
 import GHC.Generics
 import qualified GHC.Generics as GHC
@@ -22,34 +24,40 @@ import Lima.Converter (Format (..), convertTo, def)
 import Relude
 import Test.Tasty
 import Test.Tasty.HUnit
+import FieldsAndCases (IsTypeExpr)
+import FieldsAndCases (TypeExpr)
 
 newtype Code = Code Text
   deriving (Show, Eq)
-  deriving newtype (IsString, Semigroup, IsLang, ToText)
+  deriving newtype (IsString, Semigroup, IsTypeExpr, ToText)
 
-instance ToRef Code Int where
-  toRef = "Int"
+instance TypeExpr Int Code where
+  typeExpr = "Int"
 
-instance ToRef Code Float where
-  toRef = "Float"
+instance TypeExpr Float Code where
+  typeExpr = "Float"
 
-instance ToRef Code Bool where
-  toRef = "Bool"
+instance TypeExpr Bool Code where
+  typeExpr = "Bool"
 
-instance ToRef Code Text where
-  toRef = "Text"
+instance TypeExpr Text Code where
+  typeExpr = "Text"
 
-instance (ToRef Code a) => ToRef Code [a] where
-  toRef = "Vec<" <> ref @a <> ">"
+instance (TypeExpr a Code) => TypeExpr [a] Code where
+  typeExpr = "Vec<" <> FnC.typeExpr @a <> ">"
 
 data SampleType2 = SampleType2 Int Bool
-  deriving (Eq, Show, Generic, ToRef lang)
+  deriving (Eq, Show, Generic)
+
+instance TypeExpr SampleType2 Code
 
 data SampleType
   = Case1 {fieldA :: Int, fieldB :: SampleType2, fieldC :: [Float]}
   | Case2 Int Text Float
   | Case3
-  deriving (Eq, Show, Generic, ToRef lang)
+  deriving (Eq, Show, Generic)
+
+instance TypeExpr SampleType Code
 
 -- ghci> :kind! Rep SampleType
 -- Rep SampleType :: * -> *
@@ -130,37 +138,37 @@ unitTests =
   testGroup
     "Unit tests"
     [ testCase "..."
-        $ ( FnC.toDef @SampleType @Code
-              @?= TypeDef
-                { typeName =
-                    QualName
+        $ ( FnC.toTypeDef @SampleType @Code
+              @?= FnC.TypeDef
+                { qualifiedName =
+                    FnC.QualifiedName
                       { moduleName = "Spec",
                         typeName = "SampleType"
                       },
                   cases =
-                    [ Case
+                    [ FnC.Case
                         { tagName = "Case1",
-                          caseFields =
+                          caseArgs =
                             Just
-                              ( CaseLabeledFields
-                                  [ LabeledField {fieldName = "fieldA", fieldType = Code "Int"},
-                                    LabeledField {fieldName = "fieldB", fieldType = Code "SampleType2"},
-                                    LabeledField {fieldName = "fieldC", fieldType = Code "Vec<Float>"}
+                              ( FnC.CaseFields
+                                  [ FnC.Field {fieldName = "fieldA", fieldType = Code "Int"},
+                                    FnC.Field {fieldName = "fieldB", fieldType = Code "SampleType2"},
+                                    FnC.Field {fieldName = "fieldC", fieldType = Code "Vec<Float>"}
                                   ]
                               )
                         },
-                      Case
+                      FnC.Case
                         { tagName = "Case2",
-                          caseFields =
+                          caseArgs =
                             Just
-                              ( CasePositionalFields
-                                  [ PositionalField {fieldType = Code "Int"},
-                                    PositionalField {fieldType = Code "Text"},
-                                    PositionalField {fieldType = Code "Float"}
+                              ( FnC.CasePositionalArgs
+                                  [ FnC.PositionalArg {fieldType = Code "Int"},
+                                    FnC.PositionalArg {fieldType = Code "Text"},
+                                    FnC.PositionalArg {fieldType = Code "Float"}
                                   ]
                               )
                         },
-                      Case {tagName = "Case3", caseFields = Nothing}
+                      FnC.Case {tagName = "Case3", caseArgs = Nothing}
                     ]
                 }
           )

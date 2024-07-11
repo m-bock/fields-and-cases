@@ -5,17 +5,17 @@ struct Person {
     age: i32,
     isStudent: bool,
     friends: Vec<String>,
-    activity: Activity,
+    activity: Option<Activity>,
     coordinates: Vector,
 }
 
 enum Activity {
     Working,
     Studying { hours: i32, subject: Option<String> },
-    Training { location: Location },
+    Training { place: Place },
 }
 
-enum Location {
+enum Place {
     Indoor,
     Outdoor,
 }

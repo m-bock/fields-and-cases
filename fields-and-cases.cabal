@@ -59,7 +59,7 @@ library
   hs-source-dirs:  lib
 
 test-suite test
-  import:         common-opts
+  --import:         common-opts
   type:           exitcode-stdio-1.0
   other-modules:
     Readme

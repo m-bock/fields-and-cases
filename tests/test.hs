@@ -1,9 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Data.String.Conversions (cs)
 import Data.Text (replace)
-import FieldsAndCases (Case (..), IsLang (..), PositionalField (..), QualName (..), ToDef, ToRef, TypeDef (..), toRef)
-import qualified FieldsAndCases as FnC
 import GHC.Generics
 import qualified GHC.Generics as GHC
 import Lima.Converter (Format (..), convertTo, def)
@@ -13,8 +13,6 @@ import Spec (unitTests)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Regex (mkRegex, subRegex)
-
----
 
 main :: IO ()
 main = do
@@ -27,19 +25,24 @@ genReadme = do
 
   readmeHs <- readFileBS "tests/Readme.hs"
 
-  let readmeMd' = convertTo Hs Md def (cs readmeHs)
+  let readmeExample = convertTo Hs Md def (cs readmeHs)
 
   Readme.main
 
-  readmeOutput <- readFileBS "tests/Readme.rs"
-  let readmeOutput' = "```rust\n" <> readmeOutput <> "\n```"
+  readmeOutputRust <- readFileBS "tests/outputs/demo.rs"
+  readmeOutputTypeScript <- readFileBS "tests/outputs/demo.ts"
 
-  let readmeMd'' =
+  let readmeMd' =
         cs readmeMd
-          & replaceSection "example" readmeMd'
-          & replaceSection "exampleOut" (cs readmeOutput')
+          & replaceSection "example" readmeExample
+          & replaceSection
+            "exampleOutRust"
+            ("```rust\n" <> cs readmeOutputRust <> "\n```")
+          & replaceSection
+            "exampleOutTypeScript"
+            ("```ts\n" <> cs readmeOutputTypeScript <> "\n```")
 
-  writeFileBS "README.md" (cs readmeMd'')
+  writeFileBS "README.md" (cs readmeMd')
 
 tests :: TestTree
 tests = testGroup "Tests" [unitTests]

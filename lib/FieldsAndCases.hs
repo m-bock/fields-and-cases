@@ -1,39 +1,53 @@
-module FieldsAndCases where
+module FieldsAndCases
+  ( matchRecordLikeDataType,
+    isEnumWithoutData,
+    ToTypeDefs(..),
+    ToTypeDef(..),
+    IsTypeExpr(..),
+    TypeExpr(..),
+    TypeDef(..),
+    Case(..),
+    CaseArgs(..),
+    Field(..),
+    PositionalArg(..),
+    QualifiedName(..),
+  )
+where
 
 import Data.String.Conversions (cs)
 import GHC.Generics
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Relude
 
-data TypeDef lang = TypeDef
-  { typeName :: QualName,
-    cases :: [Case lang]
+data TypeDef texpr = TypeDef
+  { qualifiedName :: QualifiedName,
+    cases :: [Case texpr]
   }
   deriving (Show, Eq)
 
-data Case lang = Case
+data Case texpr = Case
   { tagName :: Text,
-    caseFields :: Maybe (CaseFields lang)
+    caseArgs :: Maybe (CaseArgs texpr)
   }
   deriving (Show, Eq)
 
-data CaseFields lang
-  = CasePositionalFields [PositionalField lang]
-  | CaseLabeledFields [LabeledField lang]
+data CaseArgs texpr
+  = CasePositionalArgs [PositionalArg texpr]
+  | CaseFields [Field texpr]
   deriving (Show, Eq)
 
-data LabeledField lang = LabeledField
+data Field texpr = Field
   { fieldName :: Text,
-    fieldType :: lang
+    fieldType :: texpr
   }
   deriving (Show, Eq)
 
-newtype PositionalField lang = PositionalField
-  { fieldType :: lang
+newtype PositionalArg texpr = PositionalArg
+  { fieldType :: texpr
   }
   deriving (Show, Eq)
 
-data QualName = QualName
+data QualifiedName = QualifiedName
   { moduleName :: Text,
     typeName :: Text
   }
@@ -41,31 +55,58 @@ data QualName = QualName
 
 ---
 
-class IsLang lang where
-  typeRef :: QualName -> lang
+matchRecordLikeDataType :: TypeDef texpr -> Maybe (Text, [Field texpr])
+matchRecordLikeDataType (TypeDef {qualifiedName = QualifiedName {typeName}, cases}) =
+  case cases of
+    [Case {tagName, caseArgs = Just (CaseFields fields)}]
+      | typeName == tagName -> Just (typeName, fields)
+    _ -> Nothing
 
-instance IsLang Text where
-  typeRef (QualName {typeName}) = fromString $ cs typeName
+isEnumWithoutData :: TypeDef texpr -> Bool
+isEnumWithoutData (TypeDef {qualifiedName = QualifiedName {typeName}, cases}) =
+  all isEnumCase cases
+  where
+    isEnumCase (Case {caseArgs = Nothing}) = True
+    isEnumCase _ = False
 
---- ToRef ---
+---
 
-class ToRef lang a where
-  toRef :: lang
-  default toRef ::
-    (IsLang lang, Generic a, GToRef (Rep a)) => lang
-  toRef =
-    typeRef $ gToRef $ getRep (Proxy :: Proxy a)
+class ToTypeDefs (xs :: [Type]) texpr where
+  toTypeDefs :: [TypeDef texpr]
 
-class GToRef rep where
-  gToRef :: rep a -> QualName
+instance ToTypeDefs '[] texpr where
+  toTypeDefs = []
+
+instance (ToTypeDef x texpr, ToTypeDefs xs texpr) => ToTypeDefs (x ': xs) texpr where
+  toTypeDefs = toTypeDef @x @texpr : toTypeDefs @xs @texpr
+
+---
+
+class IsTypeExpr texpr where
+  typeRef :: QualifiedName -> texpr
+
+instance IsTypeExpr Text where
+  typeRef (QualifiedName {typeName}) = fromString $ cs typeName
+
+--- ToTypeRef ---
+
+class TypeExpr a texpr where
+  typeExpr :: texpr
+  default typeExpr ::
+    (IsTypeExpr texpr, Generic a, GToTypeRef (Rep a)) => texpr
+  typeExpr =
+    typeRef $ gToTypeRef $ getRep (Proxy :: Proxy a)
+
+class GToTypeRef rep where
+  gToTypeRef :: rep a -> QualifiedName
 
 -- Match Data Type
 instance
   (KnownSymbol typeName, KnownSymbol moduleName) =>
-  GToRef
+  GToTypeRef
     (M1 {- MetaInfo -} D {- DataType -} ('MetaData typeName moduleName packageName isNewtype) cases)
   where
-  gToRef _ = result
+  gToTypeRef _ = result
     where
       moduleName :: Text
       moduleName = fromString $ symbolVal (Proxy @moduleName)
@@ -73,37 +114,31 @@ instance
       typeName :: Text
       typeName = fromString $ symbolVal (Proxy @typeName)
 
-      result :: QualName
-      result = QualName {moduleName, typeName}
+      result :: QualifiedName
+      result = QualifiedName {moduleName, typeName}
 
-class Ref a lang where
-  ref :: lang
+--- ToTypeDef ---
 
-instance (ToRef lang a) => Ref a lang where
-  ref = toRef @lang @a
+class ToTypeDef a texpr where
+  toTypeDef :: TypeDef texpr
 
---- ToDef ---
+instance (Generic a, GToTypeDef (Rep a) (TypeDef texpr)) => ToTypeDef a texpr where
+  toTypeDef = gToTypeDef $ getRep (Proxy :: Proxy a)
 
-class ToDef a lang where
-  toDef :: TypeDef lang
-
-instance (Generic a, GToDef (Rep a) (TypeDef lang)) => ToDef a lang where
-  toDef = gToDef $ getRep (Proxy :: Proxy a)
-
-class GToDef rep def where
-  gToDef :: rep a -> def
+class GToTypeDef rep def where
+  gToTypeDef :: rep a -> def
 
 -- Match Data Type
 instance
-  (GToDef cases [Case lang], KnownSymbol typeName, KnownSymbol moduleName) =>
-  GToDef
+  (GToTypeDef cases [Case texpr], KnownSymbol typeName, KnownSymbol moduleName) =>
+  GToTypeDef
     (M1 {- MetaInfo -} D {- DataType -} ('MetaData typeName moduleName packageName isNewtype) cases)
-    (TypeDef lang)
+    (TypeDef texpr)
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
-      cases :: [Case lang]
-      cases = gToDef (error "no value" :: cases x)
+      cases :: [Case texpr]
+      cases = gToTypeDef (error "no value" :: cases x)
 
       moduleName :: Text
       moduleName = fromString $ symbolVal (Proxy @moduleName)
@@ -111,115 +146,115 @@ instance
       typeName :: Text
       typeName = fromString $ symbolVal (Proxy @typeName)
 
-      qualName :: QualName
-      qualName = QualName {moduleName, typeName}
+      qualifiedName :: QualifiedName
+      qualifiedName = QualifiedName {moduleName, typeName}
 
-      result :: TypeDef lang
-      result = TypeDef qualName (coerce cases)
+      result :: TypeDef texpr
+      result = TypeDef qualifiedName (coerce cases)
 
 -- Match Sum
 instance
-  (GToDef lhs [Case lang], GToDef rhs [Case lang]) =>
-  GToDef
+  (GToTypeDef lhs [Case texpr], GToTypeDef rhs [Case texpr]) =>
+  GToTypeDef
     (lhs :+: rhs)
-    [Case lang]
+    [Case texpr]
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
-      lhs :: [Case lang]
-      lhs = gToDef (error "no value" :: lhs x)
+      lhs :: [Case texpr]
+      lhs = gToTypeDef (error "no value" :: lhs x)
 
-      rhs :: [Case lang]
-      rhs = gToDef (error "no value" :: rhs x)
+      rhs :: [Case texpr]
+      rhs = gToTypeDef (error "no value" :: rhs x)
 
-      result :: [Case lang]
+      result :: [Case texpr]
       result = lhs <> rhs
 
 -- Match Constructor with fields
 instance
   {-# OVERLAPPABLE #-}
-  (KnownSymbol ctorName, GToDef fields [LabeledField lang]) =>
-  GToDef
-    (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'True) fields)
-    [Case lang]
+  (KnownSymbol ctorName, GToTypeDef fields [Field texpr]) =>
+  GToTypeDef
+    (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'True {- hasSelectors -}) fields)
+    [Case texpr]
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
-      fields :: [LabeledField lang]
-      fields = gToDef (error "no value" :: fields x)
+      fields :: [Field texpr]
+      fields = gToTypeDef (error "no value" :: fields x)
 
       tagName :: Text
       tagName = fromString $ symbolVal (Proxy @ctorName)
 
-      case_ :: Case lang
+      case_ :: Case texpr
       case_ =
         Case
           { tagName,
-            caseFields = Just $ CaseLabeledFields (coerce fields)
+            caseArgs = Just $ CaseFields (coerce fields)
           }
 
-      result :: [Case lang]
+      result :: [Case texpr]
       result = coerce [case_]
 
 -- Match Constructor with positional fields
 instance
   {-# OVERLAPPABLE #-}
-  (KnownSymbol ctorName, GToDef fields [PositionalField lang]) =>
-  GToDef
+  (KnownSymbol ctorName, GToTypeDef fields [PositionalArg texpr]) =>
+  GToTypeDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'False {- hasSelectors -}) fields)
-    [Case lang]
+    [Case texpr]
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
       tagName :: Text
       tagName = fromString $ symbolVal (Proxy @ctorName)
 
-      fields :: [PositionalField lang]
-      fields = gToDef (error "no value" :: fields x)
+      fields :: [PositionalArg texpr]
+      fields = gToTypeDef (error "no value" :: fields x)
 
-      case_ :: Case lang
+      case_ :: Case texpr
       case_ =
         Case
           { tagName,
-            caseFields = Just $ CasePositionalFields (coerce fields)
+            caseArgs = Just $ CasePositionalArgs (coerce fields)
           }
 
-      result :: [Case lang]
+      result :: [Case texpr]
       result = coerce [case_]
 
 -- Match Constructor without fields
 instance
   {-# OVERLAPPABLE #-}
   (KnownSymbol ctorName) =>
-  GToDef
+  GToTypeDef
     (M1 {- MetaInfo -} C {- Constructor -} ('MetaCons ctorName fixity 'False {- hasSelectors -}) U1 {- Unit -})
-    [Case lang]
+    [Case texpr]
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
       tagName :: Text
       tagName = fromString $ symbolVal (Proxy @ctorName)
 
-      case_ :: Case lang
-      case_ = Case {tagName, caseFields = Nothing}
+      case_ :: Case texpr
+      case_ = Case {tagName, caseArgs = Nothing}
 
-      result :: [Case lang]
+      result :: [Case texpr]
       result = coerce [case_]
 
 -- Match Product
 instance
-  (GToDef lhs fields, GToDef rhs fields, Semigroup fields) =>
-  GToDef
+  (GToTypeDef lhs fields, GToTypeDef rhs fields, Semigroup fields) =>
+  GToTypeDef
     (lhs :*: rhs)
     fields
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
       lhs :: fields
-      lhs = gToDef (error "no value" :: lhs x)
+      lhs = gToTypeDef (error "no value" :: lhs x)
 
       rhs :: fields
-      rhs = gToDef (error "no value" :: rhs x)
+      rhs = gToTypeDef (error "no value" :: rhs x)
 
       result :: fields
       result = lhs <> rhs
@@ -227,42 +262,42 @@ instance
 -- Match Field
 instance
   {-# OVERLAPPABLE #-}
-  (ToRef lang a, KnownSymbol fieldName) =>
-  GToDef
+  (TypeExpr a texpr, KnownSymbol fieldName) =>
+  GToTypeDef
     (M1 {- MetaInfo -} S {- Selector -} ('MetaSel ('Just fieldName) srcUnpackedness srcStrictness inferedStrictness) (K1 R a))
-    [LabeledField lang]
+    [Field texpr]
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
       fieldName :: Text
       fieldName = fromString $ symbolVal (Proxy @fieldName)
 
-      fieldType :: lang
-      fieldType = toRef @lang @a
+      fieldType :: texpr
+      fieldType = typeExpr @a @texpr
 
-      field :: LabeledField lang
-      field = LabeledField {fieldName, fieldType}
+      field :: Field texpr
+      field = Field {fieldName, fieldType}
 
-      result :: [LabeledField lang]
+      result :: [Field texpr]
       result = coerce [field]
 
 -- Match Positional Field
 instance
   {-# OVERLAPPABLE #-}
-  (ToRef lang a) =>
-  GToDef
+  (TypeExpr a texpr) =>
+  GToTypeDef
     (M1 {- MetaInfo -} S {- Selector -} ('MetaSel 'Nothing srcUnpackedness srcStrictness inferedStrictness) (K1 R a))
-    [PositionalField lang]
+    [PositionalArg texpr]
   where
-  gToDef _ = result
+  gToTypeDef _ = result
     where
-      fieldType :: lang
-      fieldType = toRef @lang @a
+      fieldType :: texpr
+      fieldType = typeExpr @a @texpr
 
-      field :: PositionalField lang
-      field = PositionalField {fieldType}
+      field :: PositionalArg texpr
+      field = PositionalArg {fieldType}
 
-      result :: [PositionalField lang]
+      result :: [PositionalArg texpr]
       result = coerce [field]
 
 --- Utils ---
