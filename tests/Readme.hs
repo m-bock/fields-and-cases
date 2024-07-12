@@ -32,12 +32,15 @@ module Readme where -- (main) where
 As well as those imports for this demo:
 -}
 
+import Control.Exception (catch, throw)
 import qualified Data.Text as Txt
 import qualified FieldsAndCases as FnC
+import qualified GHC.IO.Exception as Ex
 import Relude
 import System.Process (callCommand)
 import qualified Test.Tasty as Spec
 import qualified Test.Tasty.HUnit as Spec
+import GHC.IO.Exception (ExitCode(ExitSuccess))
 
 {-
 ### Define custom types
@@ -369,7 +372,10 @@ as well as format it with appropriate code formatters:
 
 main :: IO ()
 main = do
+  -- Verify the assertions from above
   Spec.defaultMain unitTests
+    `catch` \e ->
+      when (e /= ExitSuccess) $ throw e
 
   do
     let filePath = "tests/outputs/demo.rs"
@@ -383,36 +389,14 @@ main = do
 
 {-
 
-### Bonus: Generate JSON serialization
+### Further ideas: JSON serialization
+
+One obvious next step would be to generate JSON serialization code.
+Because the types we generate for different languages
+are not necessarily the same as the Haskell types,
+they're just intended to be close enough to be useful.
+If you look again at the value `typeDefActivityRust2`
+that was provided as an example above,
+it's evident that we could generate JSON serialization code from that.
 
 -}
-
-printRustSerialize :: FnC.TypeDef Rust -> Text
-printRustSerialize (FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
-  case cases of
-    [FnC.Case {tagName, caseArgs = Just (FnC.CaseFields fields)}]
-      | typeName == tagName ->
-          printStruct typeName fields <> "\n"
-    cases ->
-      error "Only structs are supported in this demo"
-  where
-    printStruct :: Text -> [FnC.Field Rust] -> Text
-    printStruct name fields =
-      fold
-        [ "impl Serialize for " <> name,
-          "{",
-          "  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>",
-          "  where",
-          "    S: Serializer,",
-          "  {",
-          "    let mut state = serializer.serialize_struct(\"" <> name <> "\", " <> show (length fields) <> ")?;",
-          foldMap printField fields,
-          "    state.end()",
-          "  }",
-          "}"
-        ]
-
-    printField :: FnC.Field Rust -> Text
-    printField = \case
-      (FnC.Field {fieldName, fieldType}) ->
-        fold ["state.serialize_field(\"", fieldName, "\", &self.", fieldName, ")?;"]

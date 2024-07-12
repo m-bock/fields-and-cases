@@ -6,15 +6,15 @@
 - [Example: Generate Rust and TypeScript types from Haskell](#example-generate-rust-and-typescript-types-from-haskell)
   - [Module setup](#module-setup)
   - [Define custom types](#define-custom-types)
-  - [Define "language types" for target language](#define-language-types-for-target-language)
+  - [Define "type expression" types for target languages](#define-type-expression-types-for-target-languages)
   - [Define `TypeExpr` instances](#define-typeexpr-instances)
     - [Primitive types](#primitive-types)
     - [Composite types](#composite-types)
     - [Custom types](#custom-types)
-  - [Define](#define)
-  - [Compose a module for the target language](#compose-a-module-for-the-target-language)
+  - [Convert `TypeDef` to text](#convert-typedef-to-text)
+  - [Compose modules for the target language](#compose-modules-for-the-target-language)
   - [Write generated code to a file](#write-generated-code-to-a-file)
-  - [Bonus: Generate JSON serialization](#bonus-generate-json-serialization)
+  - [Further ideas: JSON serialization](#further-ideas-json-serialization)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -39,7 +39,6 @@ We'll need to activate the following language extensions:
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 ```
 
@@ -55,12 +54,15 @@ module Readme where -- (main) where
 As well as those imports for this demo:
 
 ```haskell
+import Control.Exception (catch, throw)
 import qualified Data.Text as Txt
 import qualified FieldsAndCases as FnC
+import qualified GHC.IO.Exception as Ex
 import Relude
 import System.Process (callCommand)
 import qualified Test.Tasty as Spec
 import qualified Test.Tasty.HUnit as Spec
+import GHC.IO.Exception (ExitCode(ExitSuccess))
 ```
 
 ### Define custom types
@@ -104,7 +106,7 @@ We use those types in other codebases that are written in different languages.
 Now we want to have a flexible yet automated way to generate the equivalent data types in those languages.
 We'll do so as an example for Rust and for TypeScript. The library is language agnostic and can be used for any language.
 
-### Define "language types" for target language
+### Define "type expression" types for target languages
 
 First we define a types that represents the type expressions of the target languages.
 In this demo it's a simple newtype wrapper around Text.
@@ -136,6 +138,7 @@ It's a typeclass parameterized by two types:
 - The language type (`Rust` or `TypeScript` in this case)
 
 This works like the well known `Show` typeclass.
+With the difference that we don't show values but types.
 
 #### Primitive types
 
@@ -215,28 +218,23 @@ instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Activity lang
 instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Place lang
 
 instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Vector lang
-
-data Ast
-  = Raw Text
-  | Wrapped Ast Ast Ast
-  | Cats [Ast]
-  | Infix Ast Ast Ast
-
-a = Cats [Raw "Vec", Wrapped (Raw "<") (Raw "Int") (Raw ">")]
 ```
 
-...
+Now let's demonstrate what we can do with the definitions we have so far.
+The library provides a function `toTypeDef`
+that generates a `FnC.TypeDef` for a given type.
+We need to pass two types via "visible type application":
 
 ```haskell
-yy :: FnC.TypeDef Rust
-yy = FnC.toTypeDef @Person @Rust
+typeDefActivityRust1 :: FnC.TypeDef Rust
+typeDefActivityRust1 = FnC.toTypeDef @Activity @Rust
 ```
 
-...
+This results in the following data:
 
 ```haskell
-xx :: FnC.TypeDef Rust
-xx =
+typeDefActivityRust2 :: FnC.TypeDef Rust
+typeDefActivityRust2 =
   FnC.TypeDef
     { qualifiedName = FnC.QualifiedName {moduleName = "Readme", typeName = "Activity"},
       cases =
@@ -267,26 +265,27 @@ xx =
     }
 ```
 
-...
+In a small unit test we can proof
+that the manual and the auto generated type definitions are equal:
 
 ```haskell
 unitTests :: Spec.TestTree
 unitTests =
   Spec.testCase
-    "..."
-    $ do
-      Spec.assertEqual "k" xx yy
+    "toTypeDef"
+    (Spec.assertEqual "" typeDefActivityRust1 typeDefActivityRust2)
 ```
 
-### Define
+### Convert `TypeDef` to text
 
-However, we need a function that generates the Rust code for a given type definition.
-It is very straightforward to implement, we just need to pattern match on the cases of the type definition.
+After having seen the generated data we can now convert it to text.
+It is very straightforward to implement,
+we just need to pattern match on the cases of the type definition.
 We don't need to deal with tricky wizardry like generics or typeclasses, this is all handled by the library:
 
 
 
-_Rust:_
+Rust:
 
 ```haskell
 printRustDef :: FnC.TypeDef Rust -> Text
@@ -313,16 +312,6 @@ printRustDef = unwords . printType
 TypeScript:
 
 ```haskell
-data Ts
-  = TypeDef Text Ts
-  | Record [(Text, Ts)]
-  | Unions [Ts]
-  | Null
-
-data Rs
-  = Struct [(Text, Ts)]
-  | Enum [(Text, Ts)]
-
 printTypeScriptDef :: FnC.TypeDef TypeScript -> Text
 printTypeScriptDef = unwords . printDef
   where
@@ -331,13 +320,15 @@ printTypeScriptDef = unwords . printDef
 
     printType typeDef@(FnC.TypeDef {cases}) =
       case FnC.matchRecordLikeDataType typeDef of
-        Just (tagName, fields) -> ["{"] <> concatMap printField fields <> ["}"]
-        Nothing -> concatMap (printCase $ FnC.isEnumWithoutData typeDef) cases
+        Just (tagName, fields) ->
+          ["{"] <> concatMap printField fields <> ["}"]
+        Nothing ->
+          concatMap (printCase $ FnC.isEnumWithoutData typeDef) cases
 
-    printField (FnC.Field {fieldName, fieldType = TypeScript code}) =
-      [fieldName, if omittable then "?" else "", ":", code, ";"]
+    printField (FnC.Field {fieldName, fieldType}) =
+      [fieldName, if omittable then "?" else "", ":", toText fieldType, ";"]
       where
-        omittable = Txt.isPrefixOf "(null |" code
+        omittable = Txt.isPrefixOf "(null |" $ toText fieldType
 
     printCase noData (FnC.Case {tagName, caseArgs}) =
       ["|"]
@@ -352,9 +343,10 @@ printTypeScriptDef = unwords . printDef
         [",", "value:", "{"] <> concatMap printField fields <> ["}"]
 ```
 
-### Compose a module for the target language
+### Compose modules for the target language
 
-Finally we can define a rust module that contains the generated code:
+Since we want to generate code for the same types in multiple languages,
+we can define a list of the types we want to export:
 
 ```haskell
 type ExportTypes =
@@ -363,7 +355,11 @@ type ExportTypes =
      Place,
      Vector
    ]
+```
 
+And finally we can define modules containing the generated code:
+
+```haskell
 codeRust :: Text
 codeRust =
   unlines
@@ -381,11 +377,17 @@ codeTypeScript =
 
 ### Write generated code to a file
 
-And we can write the generated code to a file, as well as format it with rustfmt:
+And we can write the generated code to a file,
+as well as format it with appropriate code formatters:
 
 ```haskell
 main :: IO ()
 main = do
+  -- Verify the assertions from above
+  Spec.defaultMain unitTests
+    `catch` \e ->
+      when (e /= ExitSuccess) $ throw e
+
   do
     let filePath = "tests/outputs/demo.rs"
     writeFile filePath (toString codeRust)
@@ -397,39 +399,15 @@ main = do
     callCommand ("npx prettier --write " <> filePath)
 ```
 
-### Bonus: Generate JSON serialization
+### Further ideas: JSON serialization
 
-```haskell
-printRustSerialize :: FnC.TypeDef Rust -> Text
-printRustSerialize (FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
-  case cases of
-    [FnC.Case {tagName, caseArgs = Just (FnC.CaseFields fields)}]
-      | typeName == tagName ->
-          printStruct typeName fields <> "\n"
-    cases ->
-      error "Only structs are supported in this demo"
-  where
-    printStruct :: Text -> [FnC.Field Rust] -> Text
-    printStruct name fields =
-      fold
-        [ "impl Serialize for " <> name,
-          "{",
-          "  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>",
-          "  where",
-          "    S: Serializer,",
-          "  {",
-          "    let mut state = serializer.serialize_struct(\"" <> name <> "\", " <> show (length fields) <> ")?;",
-          foldMap printField fields,
-          "    state.end()",
-          "  }",
-          "}"
-        ]
-
-    printField :: FnC.Field Rust -> Text
-    printField = \case
-      (FnC.Field {fieldName, fieldType}) ->
-        fold ["state.serialize_field(\"", fieldName, "\", &self.", fieldName, ")?;"]
-```
+One obvious next step would be to generate JSON serialization code.
+Because the types we generate for different languages
+are not necessarily the same as the Haskell types,
+they're just intended to be close enough to be useful.
+If you look again at the value `typeDefActivityRust2`
+that was provided as an example above,
+it's evident that we could generate JSON serialization code from that.
 
 <!-- END:example -->
 
