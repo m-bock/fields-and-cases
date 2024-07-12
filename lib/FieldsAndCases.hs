@@ -24,34 +24,40 @@ import GHC.Generics
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Relude
 
+-- | A
 data TypeDef texpr = TypeDef
   { qualifiedName :: QualifiedName,
     cases :: [Case texpr]
   }
   deriving (Show, Eq)
 
+-- | A
 data Case texpr = Case
   { tagName :: Text,
     caseArgs :: Maybe (CaseArgs texpr)
   }
   deriving (Show, Eq)
 
+-- | A
 data CaseArgs texpr
   = CasePositionalArgs [PositionalArg texpr]
   | CaseFields [Field texpr]
   deriving (Show, Eq)
 
+-- | A
 data Field texpr = Field
   { fieldName :: Text,
     fieldType :: texpr
   }
   deriving (Show, Eq)
 
+-- | A
 newtype PositionalArg texpr = PositionalArg
   { fieldType :: texpr
   }
   deriving (Show, Eq)
 
+-- | A
 data QualifiedName = QualifiedName
   { moduleName :: Text,
     typeName :: Text
@@ -67,6 +73,8 @@ matchRecordLikeDataType (TypeDef {qualifiedName = QualifiedName {typeName}, case
       | typeName == tagName -> Just (typeName, fields)
     _ -> Nothing
 
+
+-- | A
 isEnumWithoutData :: TypeDef texpr -> Bool
 isEnumWithoutData (TypeDef {qualifiedName = QualifiedName {typeName}, cases}) =
   all isEnumCase cases
@@ -76,6 +84,7 @@ isEnumWithoutData (TypeDef {qualifiedName = QualifiedName {typeName}, cases}) =
 
 ---
 
+-- | A
 class ToTypeDefs (xs :: [Type]) texpr where
   toTypeDefs :: [TypeDef texpr]
 
@@ -87,6 +96,7 @@ instance (ToTypeDef x texpr, ToTypeDefs xs texpr) => ToTypeDefs (x ': xs) texpr 
 
 ---
 
+-- | A
 class IsTypeExpr texpr where
   typeRef :: QualifiedName -> texpr
 
@@ -95,6 +105,7 @@ instance IsTypeExpr Text where
 
 --- ToTypeRef ---
 
+-- | A
 class TypeExpr a texpr where
   typeExpr :: texpr
   default typeExpr ::
@@ -124,6 +135,7 @@ instance
 
 --- ToTypeDef ---
 
+-- | A
 class ToTypeDef a texpr where
   toTypeDef :: TypeDef texpr
 
