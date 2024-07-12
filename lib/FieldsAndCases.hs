@@ -1,16 +1,21 @@
+{- | 
+
+Code generate type definitions in any language based on Haskell types.
+
+-}
 module FieldsAndCases
   ( matchRecordLikeDataType,
     isEnumWithoutData,
-    ToTypeDefs(..),
-    ToTypeDef(..),
-    IsTypeExpr(..),
-    TypeExpr(..),
-    TypeDef(..),
-    Case(..),
-    CaseArgs(..),
-    Field(..),
-    PositionalArg(..),
-    QualifiedName(..),
+    ToTypeDefs (..),
+    ToTypeDef (..),
+    IsTypeExpr (..),
+    TypeExpr (..),
+    TypeDef (..),
+    Case (..),
+    CaseArgs (..),
+    Field (..),
+    PositionalArg (..),
+    QualifiedName (..),
   )
 where
 
