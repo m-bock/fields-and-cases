@@ -53,8 +53,8 @@ data QualifiedName = QualifiedName
   }
   deriving (Show, Eq)
 
----
-
+-- | Data types with a single constructor and labeled fields
+-- | are considered record-like.
 matchRecordLikeDataType :: TypeDef texpr -> Maybe (Text, [Field texpr])
 matchRecordLikeDataType (TypeDef {qualifiedName = QualifiedName {typeName}, cases}) =
   case cases of
