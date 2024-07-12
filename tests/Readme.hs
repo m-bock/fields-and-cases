@@ -16,7 +16,6 @@ We'll need to activate the following language extensions:
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {-
@@ -83,7 +82,7 @@ We use those types in other codebases that are written in different languages.
 Now we want to have a flexible yet automated way to generate the equivalent data types in those languages.
 We'll do so as an example for Rust and for TypeScript. The library is language agnostic and can be used for any language.
 
-### Define "language types" for target language
+### Define "type expression" types for target languages
 
 First we define a types that represents the type expressions of the target languages.
 In this demo it's a simple newtype wrapper around Text.
@@ -117,6 +116,7 @@ It's a typeclass parameterized by two types:
 - The language type (`Rust` or `TypeScript` in this case)
 
 This works like the well known `Show` typeclass.
+With the difference that we don't show values but types.
 
 #### Primitive types
 
@@ -203,17 +203,20 @@ instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Place lang
 instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Vector lang
 
 {-
-...
+Now let's demonstrate what we can do with the definitions we have so far.
+The library provides a function `toTypeDef`
+that generates a `FnC.TypeDef` for a given type.
+We need to pass two types via "visible type application":
 -}
 
-yy :: FnC.TypeDef Rust
-yy = FnC.toTypeDef @Person @Rust
+typeDefActivityRust1 :: FnC.TypeDef Rust
+typeDefActivityRust1 = FnC.toTypeDef @Activity @Rust
 
 {-
-...
+This results in the following data:
 -}
-xx :: FnC.TypeDef Rust
-xx =
+typeDefActivityRust2 :: FnC.TypeDef Rust
+typeDefActivityRust2 =
   FnC.TypeDef
     { qualifiedName = FnC.QualifiedName {moduleName = "Readme", typeName = "Activity"},
       cases =
@@ -244,28 +247,29 @@ xx =
     }
 
 {-
-...
+In a small unit test we can proof
+that the manual and the auto generated type definitions are equal:
 -}
 
 unitTests :: Spec.TestTree
 unitTests =
   Spec.testCase
-    "..."
-    $ do
-      Spec.assertEqual "k" xx yy
+    "toTypeDef"
+    (Spec.assertEqual "" typeDefActivityRust1 typeDefActivityRust2)
 
 {-
 
-### Define
+### Convert `TypeDef` to text
 
-However, we need a function that generates the Rust code for a given type definition.
-It is very straightforward to implement, we just need to pattern match on the cases of the type definition.
+After having seen the generated data we can now convert it to text.
+It is very straightforward to implement,
+we just need to pattern match on the cases of the type definition.
 We don't need to deal with tricky wizardry like generics or typeclasses, this is all handled by the library:
 
 -}
 
 {-
-_Rust:_
+Rust:
 -}
 
 printRustDef :: FnC.TypeDef Rust -> Text
@@ -324,9 +328,10 @@ printTypeScriptDef = unwords . printDef
 
 {-
 
-### Compose a module for the target language
+### Compose modules for the target language
 
-Finally we can define a rust module that contains the generated code:
+Since we want to generate code for the same types in multiple languages,
+we can define a list of the types we want to export:
 -}
 
 type ExportTypes =
@@ -335,6 +340,10 @@ type ExportTypes =
      Place,
      Vector
    ]
+
+{-
+And finally we can define modules containing the generated code:
+-}
 
 codeRust :: Text
 codeRust =
@@ -354,7 +363,8 @@ codeTypeScript =
 
 ### Write generated code to a file
 
-And we can write the generated code to a file, as well as format it with rustfmt:
+And we can write the generated code to a file,
+as well as format it with appropriate code formatters:
 -}
 
 main :: IO ()
