@@ -1,6 +1,6 @@
 # fields-and-cases
 
-Code generate type definitions in any language based on Haskess types.
+Code generate type definitions in any language based on Haskell types.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
