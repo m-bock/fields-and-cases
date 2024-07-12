@@ -85,7 +85,7 @@ We use those types in other codebases that are written in different languages.
 Now we want to have a flexible yet automated way to generate the equivalent data types in those languages.
 We'll do so as an example for Rust and for TypeScript. The library is language agnostic and can be used for any language.
 
-### Define "type expression" types for target languages
+### Define types representing code of target languages
 
 First we define a types that represents the type expressions of the target languages.
 In this demo it's a simple newtype wrapper around Text.
@@ -111,7 +111,7 @@ newtype TypeScript = TypeScript Text
 
 {-
 
-### Define `TypeExpr` instances
+### Specify how to generate code for each type
 
 Now we define instances for the `FnC.TypeExpr` typeclass.
 It's a typeclass parameterized by two types:
@@ -262,11 +262,11 @@ unitTests =
 
 {-
 
-### Convert `TypeDef` to text
+### Print "fields and cases" of the type definitions to text
 
 After having seen the generated data we can now convert it to text.
 It is very straightforward to implement,
-we just need to pattern match on the cases of the type definition.
+we just need to pattern match on the given data structure.
 We don't need to deal with tricky wizardry like generics or typeclasses, this is all handled by the library:
 
 -}
