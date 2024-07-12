@@ -24,40 +24,40 @@ import GHC.Generics
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Relude
 
--- | A
+-- | Haskell type definition.
 data TypeDef texpr = TypeDef
   { qualifiedName :: QualifiedName,
     cases :: [Case texpr]
   }
   deriving (Show, Eq)
 
--- | A
+-- | Haskell type constructor.
 data Case texpr = Case
   { tagName :: Text,
     caseArgs :: Maybe (CaseArgs texpr)
   }
   deriving (Show, Eq)
 
--- | A
+-- | Haskell type constructor arguments.
 data CaseArgs texpr
   = CasePositionalArgs [PositionalArg texpr]
   | CaseFields [Field texpr]
   deriving (Show, Eq)
 
--- | A
+-- | Haskell type labeled field.
 data Field texpr = Field
   { fieldName :: Text,
     fieldType :: texpr
   }
   deriving (Show, Eq)
 
--- | A
+-- | Haskell type positional field.
 newtype PositionalArg texpr = PositionalArg
   { fieldType :: texpr
   }
   deriving (Show, Eq)
 
--- | A
+-- | Haskell type qualified name.
 data QualifiedName = QualifiedName
   { moduleName :: Text,
     typeName :: Text
@@ -74,7 +74,7 @@ matchRecordLikeDataType (TypeDef {qualifiedName = QualifiedName {typeName}, case
     _ -> Nothing
 
 
--- | A
+-- | Data types with all of their constructors having no arguments
 isEnumWithoutData :: TypeDef texpr -> Bool
 isEnumWithoutData (TypeDef {qualifiedName = QualifiedName {typeName}, cases}) =
   all isEnumCase cases
@@ -84,7 +84,7 @@ isEnumWithoutData (TypeDef {qualifiedName = QualifiedName {typeName}, cases}) =
 
 ---
 
--- | A
+-- | Like 'ToTypeDef' but for a list of types.
 class ToTypeDefs (xs :: [Type]) texpr where
   toTypeDefs :: [TypeDef texpr]
 
@@ -96,7 +96,7 @@ instance (ToTypeDef x texpr, ToTypeDefs xs texpr) => ToTypeDefs (x ': xs) texpr 
 
 ---
 
--- | A
+-- | A class of types which can be used as type expressions.
 class IsTypeExpr texpr where
   typeRef :: QualifiedName -> texpr
 
@@ -105,7 +105,7 @@ instance IsTypeExpr Text where
 
 --- ToTypeRef ---
 
--- | A
+-- | Describes how to convert a type to a type expression of a specific language.
 class TypeExpr a texpr where
   typeExpr :: texpr
   default typeExpr ::
@@ -135,7 +135,7 @@ instance
 
 --- ToTypeDef ---
 
--- | A
+-- | Get the type definition of a type.
 class ToTypeDef a texpr where
   toTypeDef :: TypeDef texpr
 
