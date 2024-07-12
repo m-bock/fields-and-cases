@@ -22,7 +22,7 @@ We'll need to activate the following language extensions:
 <!--
 -}
 
-module Readme where -- (main) where
+module Readme (main) where
 
 {-
 -->
@@ -389,7 +389,7 @@ main = do
 
 {-
 
-### Further ideas: JSON serialization
+## Further ideas: JSON serialization
 
 One obvious next step would be to generate JSON serialization code.
 Because the types we generate for different languages
