@@ -477,3 +477,13 @@ type Vector = { x: number; y: number };
 
 ```
 <!-- END:exampleOutTypeScript -->
+
+## Further ideas: JSON serialization
+
+One obvious next step would be to generate JSON serialization code.
+Because the types we generate for different languages
+are not necessarily the same as the Haskell types,
+they're just intended to be close enough to be useful.
+If you look again at the value `typeDefActivityRust2`
+that was provided as an example above,
+it's evident that we could generate JSON serialization code from that.
