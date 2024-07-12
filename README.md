@@ -5,6 +5,8 @@ Code generate type definitions in any language based on Haskell types.
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+- [Installation](#installation)
+- [API Docs](#api-docs)
 - [Example: Generate Rust and TypeScript types from Haskell](#example-generate-rust-and-typescript-types-from-haskell)
   - [Module setup](#module-setup)
   - [Define custom types](#define-custom-types)
@@ -19,6 +21,14 @@ Code generate type definitions in any language based on Haskell types.
 - [Further ideas: JSON serialization](#further-ideas-json-serialization)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Installation
+
+Add `fields-and-cases` to your `*.cabal` file.
+
+## API Docs
+
+- [`fields-and-cases` on Hackage](https://hackage.haskell.org/package/fields-and-cases)
 
 ## Example: Generate Rust and TypeScript types from Haskell
 
