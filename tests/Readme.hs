@@ -205,6 +205,13 @@ instance (FnC.IsTypeExpr lang) => FnC.TypeExpr Vector lang
 {-
 ...
 -}
+
+yy :: FnC.TypeDef Rust
+yy = FnC.toTypeDef @Person @Rust
+
+{-
+...
+-}
 xx :: FnC.TypeDef Rust
 xx =
   FnC.TypeDef
@@ -240,22 +247,12 @@ xx =
 ...
 -}
 
-yy :: FnC.TypeDef Rust
-yy = FnC.toTypeDef @Person @Rust
-
-{-
-...
--}
-
 unitTests :: Spec.TestTree
 unitTests =
   Spec.testCase
     "..."
     $ do
-      Spec.assertEqual
-        "k"
-        xx
-        yy
+      Spec.assertEqual "k" xx yy
 
 {-
 
@@ -272,68 +269,58 @@ _Rust:_
 -}
 
 printRustDef :: FnC.TypeDef Rust -> Text
-printRustDef typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
-  case FnC.matchRecordLikeDataType typeDef of
-    Just (tagName, fields) ->
-      fold ["struct " <> typeName, "{", foldMap printRustField fields, "}", "\n"]
-    Nothing ->
-      fold ["enum " <> typeName, "{", foldMap printRustCase cases, "}", "\n"]
+printRustDef = unwords . printType
+  where
+    printType typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
+      case FnC.matchRecordLikeDataType typeDef of
+        Just (tagName, fields) ->
+          ["struct", typeName, "{"] <> concatMap printField fields <> ["}\n"]
+        Nothing ->
+          ["enum", typeName, "{"] <> concatMap printCase cases <> ["}\n"]
 
-{-
-...
--}
+    printField (FnC.Field {fieldName, fieldType}) =
+      [fieldName, ":", toText fieldType, ","]
 
-printRustField :: FnC.Field Rust -> Text
-printRustField (FnC.Field {fieldName, fieldType}) =
-  fold
-    [fieldName, ":", toText fieldType, ","]
-
-printRustCase :: FnC.Case Rust -> Text
-printRustCase (FnC.Case {tagName, caseArgs}) =
-  fold
-    [ tagName,
+    printCase (FnC.Case {tagName, caseArgs}) =
       case caseArgs of
-        Nothing -> ","
+        Nothing ->
+          [tagName, ","]
         Just (FnC.CaseFields fields) ->
-          fold ["{", foldMap printRustField fields, "}", ","]
-    ]
+          [tagName, "{"] <> concatMap printField fields <> ["},"]
 
 {-
 TypeScript:
 -}
 
 printTypeScriptDef :: FnC.TypeDef TypeScript -> Text
-printTypeScriptDef typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}, cases}) =
-  case typeDef of
-    (FnC.matchRecordLikeDataType -> Just (tagName, fields)) ->
-      fold ["type " <> typeName, " = {", foldMap printTSField fields, "}", "\n"]
-    (FnC.isEnumWithoutData -> True) ->
-      fold ["type " <> typeName, " = ", foldMap printCaseNoData cases, "\n"]
-    _ ->
-      fold ["type " <> typeName, " = ", foldMap printCase cases, "\n"]
-
-printTSField :: FnC.Field TypeScript -> Text
-printTSField (FnC.Field {fieldName, fieldType = TypeScript code}) =
-  fold
-    [fieldName, if omittable then "?" else "", ":", code, ";"]
+printTypeScriptDef = unwords . printDef
   where
-    omittable = Txt.isPrefixOf "(null |" code
+    printDef typeDef@(FnC.TypeDef {qualifiedName = FnC.QualifiedName {typeName}}) =
+      ["type", typeName, "="] <> printType typeDef <> ["\n"]
 
-printCase :: FnC.Case TypeScript -> Text
-printCase (FnC.Case {tagName, caseArgs}) =
-  fold
-    [ "| {",
-      "tag: '" <> tagName <> "'",
-      case caseArgs of
-        Nothing -> ","
-        Just (FnC.CaseFields fields) ->
-          fold [", value: {", foldMap printTSField fields, "}", ","],
-      "}"
-    ]
+    printType typeDef@(FnC.TypeDef {cases}) =
+      case FnC.matchRecordLikeDataType typeDef of
+        Just (tagName, fields) ->
+          ["{"] <> concatMap printField fields <> ["}"]
+        Nothing ->
+          concatMap (printCase $ FnC.isEnumWithoutData typeDef) cases
 
-printCaseNoData :: FnC.Case texpr -> Text
-printCaseNoData (FnC.Case {tagName}) =
-  "| '" <> tagName <> "'"
+    printField (FnC.Field {fieldName, fieldType}) =
+      [fieldName, if omittable then "?" else "", ":", toText fieldType, ";"]
+      where
+        omittable = Txt.isPrefixOf "(null |" $ toText fieldType
+
+    printCase noData (FnC.Case {tagName, caseArgs}) =
+      ["|"]
+        <> if noData
+          then ["'" <> tagName <> "'"]
+          else ["{", "tag:", "'" <> tagName <> "'"] <> printCaseArgs caseArgs <> ["}"]
+
+    printCaseArgs = \case
+      Nothing ->
+        []
+      Just (FnC.CaseFields fields) ->
+        [",", "value:", "{"] <> concatMap printField fields <> ["}"]
 
 {-
 
@@ -372,6 +359,8 @@ And we can write the generated code to a file, as well as format it with rustfmt
 
 main :: IO ()
 main = do
+  Spec.defaultMain unitTests
+
   do
     let filePath = "tests/outputs/demo.rs"
     writeFile filePath (toString codeRust)
