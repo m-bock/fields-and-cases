@@ -16,8 +16,6 @@ module FieldsAndCases
     Field (..),
     PositionalArg (..),
     QualifiedName (..),
-    GToTypeDef(..),
-    GToTypeRef(..)
   )
 where
 
@@ -115,7 +113,6 @@ class TypeExpr a texpr where
   typeExpr =
     typeRef $ gToTypeRef $ getRep (Proxy :: Proxy a)
 
--- | A
 class GToTypeRef rep where
   gToTypeRef :: rep a -> QualifiedName
 
@@ -145,7 +142,6 @@ class ToTypeDef a texpr where
 instance (Generic a, GToTypeDef (Rep a) (TypeDef texpr)) => ToTypeDef a texpr where
   toTypeDef = gToTypeDef $ getRep (Proxy :: Proxy a)
 
--- | A
 class GToTypeDef rep def where
   gToTypeDef :: rep a -> def
 
