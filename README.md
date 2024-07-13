@@ -1,5 +1,7 @@
 # fields-and-cases
 
+<img src="logo.svg" height="50px"/>
+
 Code generate type definitions in any language based on Haskell types.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
