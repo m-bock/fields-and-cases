@@ -70,7 +70,6 @@ test-suite test
   build-depends:
     , base
     , fields-and-cases
-    , lima
     , process
     , regex-compat
     , relude
