@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               fields-and-cases
-version:            0.1.0.0
+version:            0.2.0.0
 synopsis:           Codegen Haskell types to other languages
 description:
   This package provides a way to generate code for other languages from Haskell types.
