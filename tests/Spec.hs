@@ -20,7 +20,6 @@ import Data.Text (replace)
 import qualified FieldsAndCases as FnC
 import GHC.Generics
 import qualified GHC.Generics as GHC
-import Lima.Converter (Format (..), convertTo, def)
 import Relude
 import Test.Tasty
 import Test.Tasty.HUnit
