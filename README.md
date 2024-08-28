@@ -81,7 +81,7 @@ import GHC.IO.Exception (ExitCode(ExitSuccess))
 
 ### Define custom types
 
-Let' say we have the following data types in Haskell:
+Let's say we have the following data types in Haskell:
 
 ```haskell
 data Activity
@@ -118,11 +118,11 @@ data Person = Person
 
 We use those types in other codebases that are written in different languages.
 Now we want to have a flexible yet automated way to generate the equivalent data types in those languages.
-We'll do so as an example for Rust and for TypeScript. The library is language agnostic and can be used for any language.
+We'll do so as an example for Rust and for TypeScript. However the library is language agnostic and can be used for any language.
 
 ### Define types representing code of target languages
 
-First we define a types that represents the type expressions of the target languages.
+First we define a type that represents the type expressions of the target languages.
 In this demo it's a simple newtype wrapper around Text.
 That already works very well, but you could also define and use a custom AST type instead.
 Most importantly it needs an instance of `FnC.IsTypeExpr`.
@@ -151,12 +151,12 @@ It's a typeclass parameterized by two types:
 - The type we want to generate a reference for (`Text`, `Int`, `Bool`, `Maybe a`, `[a]`, ...)
 - The language type (`Rust` or `TypeScript` in this case)
 
-This works like the well known `Show` typeclass.
+This works similar to the well known `Show` typeclass.
 With the difference that we don't show values but types.
 
 #### Primitive types
 
-Let's start with instance for the primitive types.
+Let's start with instances for the primitive types.
 Note that since we are using 'OverloadedStrings' we can use string literals directly,
 `typeExpr = "bool"` is equivalent to `typeExpr = fromString "bool" :: Rust`:
 
@@ -190,7 +190,7 @@ instance FnC.TypeExpr Text TypeScript where
 
 #### Composite types
 
-And then add some instance for composite types.
+And then add some instances for composite types.
 We use `FnC.typeExpr` to recursively reference type arguments.
 
 
